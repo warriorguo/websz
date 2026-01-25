@@ -141,13 +141,52 @@ func (fm *FileManager) OpenFile(virtualPath string) (*os.File, *FileInfo, error)
 		return nil, nil, err
 	}
 
-	info, err := fm.Stat(virtualPath)
+	// Use StatFast to avoid expensive SHA256 calculation for streaming
+	info, err := fm.StatFast(virtualPath)
 	if err != nil {
 		file.Close()
 		return nil, nil, err
 	}
 
 	return file, info, nil
+}
+
+// StatFast returns file info without calculating SHA256 hash.
+// Uses size and mtime for ETag, suitable for streaming large files.
+func (fm *FileManager) StatFast(virtualPath string) (*FileInfo, error) {
+	absPath, err := fm.pathHandler.SafePath(virtualPath)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := os.Stat(absPath)
+	if err != nil {
+		return nil, err
+	}
+
+	fileInfo := &FileInfo{
+		Name:  info.Name(),
+		Path:  virtualPath,
+		IsDir: info.IsDir(),
+		Size:  info.Size(),
+		MTime: info.ModTime(),
+		Mode:  info.Mode().String(),
+	}
+
+	if !info.IsDir() {
+		ext := strings.ToLower(filepath.Ext(info.Name()))
+		fileInfo.Ext = ext
+		fileInfo.MIME = mime.TypeByExtension(ext)
+
+		if fileInfo.MIME == "" {
+			fileInfo.MIME = fm.detectMIME(absPath)
+		}
+
+		// Fast ETag based on size and mtime (no SHA256)
+		fileInfo.ETag = fmt.Sprintf(`"%x-%x"`, info.Size(), info.ModTime().UnixNano())
+	}
+
+	return fileInfo, nil
 }
 
 func (fm *FileManager) CreateDir(parentVirtualPath, name string) error {
