@@ -291,6 +291,47 @@
             margin: 12px;
             border: 1px solid #fcc;
         }
+
+        .upload-progress-container {
+            width: 100%;
+        }
+
+        .upload-progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .upload-progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .upload-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0066cc, #0088ff);
+            border-radius: 10px;
+            transition: width 0.2s ease;
+            width: 0%;
+        }
+
+        .upload-progress-text {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 13px;
+            color: #888;
+        }
+
+        .upload-file-name {
+            font-weight: 500;
+            margin-bottom: 16px;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>
@@ -375,6 +416,25 @@
             </div>
             <div class="modal-footer">
                 <button class="btn" onclick="hideModal('propertiesModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="uploadProgressModal">
+        <div class="modal-content">
+            <div class="modal-header">Uploading Files</div>
+            <div class="modal-body">
+                <div class="upload-progress-container">
+                    <div class="upload-file-name" id="uploadFileName"></div>
+                    <div class="upload-progress-info">
+                        <span id="uploadProgressPercent">0%</span>
+                        <span id="uploadProgressSize">0 B / 0 B</span>
+                    </div>
+                    <div class="upload-progress-bar">
+                        <div class="upload-progress-fill" id="uploadProgressFill"></div>
+                    </div>
+                    <div class="upload-progress-text" id="uploadProgressText">Preparing upload...</div>
+                </div>
             </div>
         </div>
     </div>

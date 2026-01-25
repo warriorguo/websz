@@ -239,27 +239,83 @@ function uploadFiles() {
 
 function uploadFilesArray(files) {
     if (files.length === 0) return;
-    
+
     const formData = new FormData();
+    let totalSize = 0;
+    const fileNames = [];
+
     files.forEach(file => {
         formData.append('files', file);
+        totalSize += file.size;
+        fileNames.push(file.name);
     });
-    
-    fetch(`/api/upload?p=${encodeURIComponent(currentPath)}`, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.ok) {
-            refresh();
-        } else {
-            showError(data.error);
+
+    // Show progress modal
+    const progressModal = document.getElementById('uploadProgressModal');
+    const progressFill = document.getElementById('uploadProgressFill');
+    const progressPercent = document.getElementById('uploadProgressPercent');
+    const progressSize = document.getElementById('uploadProgressSize');
+    const progressText = document.getElementById('uploadProgressText');
+    const fileName = document.getElementById('uploadFileName');
+
+    fileName.textContent = files.length === 1 ? fileNames[0] : `${files.length} files`;
+    progressFill.style.width = '0%';
+    progressPercent.textContent = '0%';
+    progressSize.textContent = `0 B / ${formatFileSize(totalSize)}`;
+    progressText.textContent = 'Uploading...';
+    showModal('uploadProgressModal');
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            progressFill.style.width = percent + '%';
+            progressPercent.textContent = percent + '%';
+            progressSize.textContent = `${formatFileSize(e.loaded)} / ${formatFileSize(e.total)}`;
+
+            if (percent === 100) {
+                progressText.textContent = 'Processing...';
+            }
         }
-    })
-    .catch(error => {
-        showError('Upload failed: ' + error.message);
     });
+
+    xhr.addEventListener('load', function() {
+        hideModal('uploadProgressModal');
+
+        if (xhr.status === 200) {
+            try {
+                const data = JSON.parse(xhr.responseText);
+                if (data.ok) {
+                    refresh();
+                } else {
+                    showError(data.error);
+                }
+            } catch (e) {
+                showError('Invalid response from server');
+            }
+        } else {
+            try {
+                const data = JSON.parse(xhr.responseText);
+                showError(data.error || 'Upload failed');
+            } catch (e) {
+                showError('Upload failed: ' + xhr.statusText);
+            }
+        }
+    });
+
+    xhr.addEventListener('error', function() {
+        hideModal('uploadProgressModal');
+        showError('Upload failed: Network error');
+    });
+
+    xhr.addEventListener('abort', function() {
+        hideModal('uploadProgressModal');
+        showError('Upload cancelled');
+    });
+
+    xhr.open('POST', `/api/upload?p=${encodeURIComponent(currentPath)}`);
+    xhr.send(formData);
 }
 
 function setupContextMenu() {
