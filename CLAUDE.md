@@ -5,11 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build and Run
 
 ```bash
-# Build the application
-go build -o websz ./cmd/websz
-
-# Run with defaults (serves current directory on 0.0.0.0:18090)
-./websz
+make build    # Build the binary
+make run      # Build and run
+make clean    # Remove binary
 
 # Common options
 ./websz -root /path/to/serve -listen 127.0.0.1:8080 -token mytoken -readonly
