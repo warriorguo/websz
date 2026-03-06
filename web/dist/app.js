@@ -1,6 +1,9 @@
 let currentPath = '/';
 let selectedItem = null;
 let contextMenuItem = null;
+let currentFiles = [];
+let sortField = 'name';
+let sortAsc = true;
 
 // Cinema mode state
 let cinemaMediaFiles = [];
@@ -44,7 +47,8 @@ function loadDirectory(path, skipPush) {
         .then(data => {
             console.log('Received data:', data);
             if (data.ok) {
-                renderFileList(data.data.items || []);
+                currentFiles = data.data.items || [];
+                renderFileList(sortFiles(currentFiles));
             } else {
                 showError(data.error || 'Unknown error');
             }
@@ -84,6 +88,47 @@ function updateBreadcrumb() {
         link.onclick = () => loadDirectory(currentPathForClosure);
         breadcrumb.appendChild(link);
     }
+}
+
+function sortFiles(files) {
+    const sorted = [...files];
+    // Directories always first
+    sorted.sort((a, b) => {
+        if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+        let cmp = 0;
+        if (sortField === 'name') {
+            cmp = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+        } else if (sortField === 'size') {
+            cmp = (a.size || 0) - (b.size || 0);
+        } else if (sortField === 'mtime') {
+            cmp = new Date(a.mtime) - new Date(b.mtime);
+        }
+        return sortAsc ? cmp : -cmp;
+    });
+    return sorted;
+}
+
+function sortBy(field) {
+    if (sortField === field) {
+        sortAsc = !sortAsc;
+    } else {
+        sortField = field;
+        sortAsc = true;
+    }
+    updateSortIndicators();
+    renderFileList(sortFiles(currentFiles));
+}
+
+function updateSortIndicators() {
+    ['name', 'size', 'mtime'].forEach(f => {
+        const th = document.getElementById('th-' + f);
+        const label = { name: 'Name', size: 'Size', mtime: 'Modified' }[f];
+        if (f === sortField) {
+            th.innerHTML = label + '<span class="sort-arrow">' + (sortAsc ? '\u25B2' : '\u25BC') + '</span>';
+        } else {
+            th.textContent = label;
+        }
+    });
 }
 
 function renderFileList(files) {

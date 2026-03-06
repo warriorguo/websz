@@ -112,6 +112,13 @@
             border-bottom: 1px solid #ddd;
             position: sticky;
             top: 0;
+            user-select: none;
+        }
+
+        .file-table th .sort-arrow {
+            margin-left: 4px;
+            font-size: 12px;
+            color: #999;
         }
         
         .file-table td {
@@ -467,9 +474,9 @@
                 <table class="file-table">
                     <thead>
                         <tr>
-                            <th style="width: 40%">Name</th>
-                            <th style="width: 12%">Size</th>
-                            <th style="width: 18%">Modified</th>
+                            <th style="width: 40%; cursor:pointer" onclick="sortBy('name')" id="th-name">Name</th>
+                            <th style="width: 12%; cursor:pointer" onclick="sortBy('size')" id="th-size">Size</th>
+                            <th style="width: 18%; cursor:pointer" onclick="sortBy('mtime')" id="th-mtime">Modified</th>
                             <th style="width: 30%">Actions</th>
                         </tr>
                     </thead>
