@@ -1,7 +1,6 @@
 package main
 
 import (
-	"embed"
 	"flag"
 	"fmt"
 	"log"
@@ -13,10 +12,8 @@ import (
 	"time"
 
 	"github.com/warriorguo/websz/internal/server"
+	"github.com/warriorguo/websz/web"
 )
-
-//go:embed web/dist
-var staticFiles embed.FS
 
 func main() {
 	var (
@@ -68,7 +65,7 @@ func main() {
 		ReadOnly: *readonly,
 	}
 
-	srv, err := server.NewServer(config, staticFiles)
+	srv, err := server.NewServer(config, web.StaticFiles)
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
 	}

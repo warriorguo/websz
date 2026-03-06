@@ -76,7 +76,7 @@ func (s *Server) setupRoutes(staticFiles embed.FS) {
 		s.mux.HandleFunc("/api/delete", s.handleDelete)
 	}
 
-	subFS, err := fs.Sub(staticFiles, "web/dist")
+	subFS, err := fs.Sub(staticFiles, "dist")
 	if err == nil {
 		s.mux.Handle("/", http.FileServer(http.FS(subFS)))
 	} else {

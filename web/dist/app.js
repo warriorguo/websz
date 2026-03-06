@@ -2,14 +2,33 @@ let currentPath = '/';
 let selectedItem = null;
 let contextMenuItem = null;
 
+// Cinema mode state
+let cinemaMediaFiles = [];
+let cinemaIndex = 0;
+let cinemaActive = false;
+
+const CINEMA_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
+const CINEMA_VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogg'];
+
 document.addEventListener('DOMContentLoaded', function() {
-    loadDirectory('/');
+    const initPath = location.hash ? decodeURIComponent(location.hash.slice(1)) : '/';
+    loadDirectory(initPath);
     setupDragAndDrop();
     setupContextMenu();
 });
 
-function loadDirectory(path) {
+window.addEventListener('popstate', function() {
+    const path = location.hash ? decodeURIComponent(location.hash.slice(1)) : '/';
+    if (path !== currentPath) {
+        loadDirectory(path, true);
+    }
+});
+
+function loadDirectory(path, skipPush) {
     currentPath = path;
+    if (!skipPush) {
+        history.pushState(null, '', '#' + encodeURIComponent(path));
+    }
     updateBreadcrumb();
     
     console.log('Loading directory:', path);
@@ -70,7 +89,16 @@ function updateBreadcrumb() {
 function renderFileList(files) {
     const tbody = document.getElementById('fileTableBody');
     tbody.innerHTML = '';
-    
+
+    // Detect media files for cinema mode
+    cinemaMediaFiles = files.filter(f => {
+        if (f.isDir) return false;
+        const ext = (f.ext || '').toLowerCase();
+        return CINEMA_IMAGE_EXTS.includes(ext) || CINEMA_VIDEO_EXTS.includes(ext);
+    });
+    const cinemaBtn = document.getElementById('cinemaBtn');
+    cinemaBtn.style.display = cinemaMediaFiles.length > 0 ? '' : 'none';
+
     if (files.length === 0) {
         const row = tbody.insertRow();
         const cell = row.insertCell(0);
@@ -582,6 +610,94 @@ function showModal(modalId) {
 function hideModal(modalId) {
     document.getElementById(modalId).style.display = 'none';
 }
+
+// ---- Cinema Mode ----
+
+function isCinemaImage(ext) {
+    return CINEMA_IMAGE_EXTS.includes((ext || '').toLowerCase());
+}
+
+function enterCinemaMode() {
+    if (cinemaMediaFiles.length === 0) return;
+    cinemaActive = true;
+    cinemaIndex = 0;
+    document.getElementById('cinemaOverlay').classList.add('active');
+    renderCinemaItem();
+    document.addEventListener('keydown', cinemaKeyHandler);
+    document.getElementById('cinemaOverlay').addEventListener('wheel', cinemaWheelHandler, { passive: false });
+}
+
+function exitCinemaMode() {
+    cinemaActive = false;
+    document.getElementById('cinemaOverlay').classList.remove('active');
+    document.removeEventListener('keydown', cinemaKeyHandler);
+    document.getElementById('cinemaOverlay').removeEventListener('wheel', cinemaWheelHandler);
+    // Stop any playing video
+    const container = document.getElementById('cinemaMediaContainer');
+    const video = container.querySelector('video');
+    if (video) { video.pause(); video.src = ''; }
+    container.innerHTML = '';
+}
+
+function renderCinemaItem() {
+    const file = cinemaMediaFiles[cinemaIndex];
+    const container = document.getElementById('cinemaMediaContainer');
+    const ext = (file.ext || '').toLowerCase();
+    const url = `/open?p=${encodeURIComponent(file.path)}`;
+
+    // Stop previous video if any
+    const oldVideo = container.querySelector('video');
+    if (oldVideo) { oldVideo.pause(); oldVideo.src = ''; }
+
+    if (isCinemaImage(ext)) {
+        container.innerHTML = `<img src="${url}" alt="${file.name}">`;
+    } else {
+        container.innerHTML = `<video src="${url}" autoplay controls loop></video>`;
+    }
+
+    document.getElementById('cinemaFileName').textContent = file.name;
+    document.getElementById('cinemaCounter').textContent = `${cinemaIndex + 1} / ${cinemaMediaFiles.length}`;
+}
+
+function cinemaNext() {
+    cinemaIndex = (cinemaIndex + 1) % cinemaMediaFiles.length;
+    renderCinemaItem();
+}
+
+function cinemaPrev() {
+    cinemaIndex = (cinemaIndex - 1 + cinemaMediaFiles.length) % cinemaMediaFiles.length;
+    renderCinemaItem();
+}
+
+let cinemaWheelCooldown = false;
+
+function cinemaKeyHandler(e) {
+    if (!cinemaActive) return;
+    if (e.key === 'Escape') {
+        exitCinemaMode();
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        cinemaNext();
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        cinemaPrev();
+    }
+}
+
+function cinemaWheelHandler(e) {
+    e.preventDefault();
+    if (cinemaWheelCooldown) return;
+    cinemaWheelCooldown = true;
+    setTimeout(() => { cinemaWheelCooldown = false; }, 300);
+
+    if (e.deltaY > 0) {
+        cinemaNext();
+    } else if (e.deltaY < 0) {
+        cinemaPrev();
+    }
+}
+
+// ---- End Cinema Mode ----
 
 function showError(message) {
     const existing = document.querySelector('.error');
