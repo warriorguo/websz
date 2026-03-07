@@ -20,7 +20,11 @@ document.addEventListener('DOMContentLoaded', function() {
     setupContextMenu();
 });
 
-window.addEventListener('popstate', function() {
+window.addEventListener('popstate', function(e) {
+    if (cinemaActive) {
+        exitCinemaMode(true);
+        return;
+    }
     const path = location.hash ? decodeURIComponent(location.hash.slice(1)) : '/';
     if (path !== currentPath) {
         loadDirectory(path, true);
@@ -66,7 +70,7 @@ function updateBreadcrumb() {
     const parts = currentPath.split('/').filter(p => p !== '');
     
     const rootLink = document.createElement('a');
-    rootLink.href = '#';
+    rootLink.href = 'javascript:void(0)';
     rootLink.className = 'breadcrumb-item';
     rootLink.textContent = 'Root';
     rootLink.onclick = () => loadDirectory('/');
@@ -81,7 +85,7 @@ function updateBreadcrumb() {
         
         path += '/' + parts[i];
         const link = document.createElement('a');
-        link.href = '#';
+        link.href = 'javascript:void(0)';
         link.className = 'breadcrumb-item';
         link.textContent = parts[i];
         const currentPathForClosure = path;
@@ -666,14 +670,18 @@ function enterCinemaMode() {
     if (cinemaMediaFiles.length === 0) return;
     cinemaActive = true;
     cinemaIndex = 0;
+    history.pushState({ cinema: true }, '');
     document.getElementById('cinemaOverlay').classList.add('active');
     renderCinemaItem();
     document.addEventListener('keydown', cinemaKeyHandler);
     document.getElementById('cinemaOverlay').addEventListener('wheel', cinemaWheelHandler, { passive: false });
 }
 
-function exitCinemaMode() {
+function exitCinemaMode(fromPopstate) {
     cinemaActive = false;
+    if (!fromPopstate) {
+        history.back();
+    }
     document.getElementById('cinemaOverlay').classList.remove('active');
     document.removeEventListener('keydown', cinemaKeyHandler);
     document.getElementById('cinemaOverlay').removeEventListener('wheel', cinemaWheelHandler);
