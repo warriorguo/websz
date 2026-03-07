@@ -1,145 +1,95 @@
 # websz
 
-A Go-based local directory file transfer and management web tool that provides a Windows-style file manager interface for your local files through a web browser.
+A Go-based local directory file transfer and management web tool that provides a file manager interface through a web browser.
+
+## Security Warning
+
+> **This tool exposes your local filesystem to the network. Understand the risks before using it.**
+
+- **Do NOT** run this tool on untrusted or public networks without token authentication.
+- **Do NOT** serve sensitive directories (e.g., `/`, `~`, system directories) unless you know what you are doing.
+- **Always** use `-token` when binding to non-localhost addresses.
+- **Prefer** `-readonly` mode when you only need to browse or download files.
+- **Prefer** `-listen 127.0.0.1:PORT` to restrict access to localhost only.
+- This tool provides **no encryption** (no HTTPS). Use a reverse proxy with TLS if you need encrypted transport.
+- Token authentication is **basic bearer-style** — it is not a substitute for proper access control in production environments.
+- Be aware that anyone with the token has **full read/write access** to the served directory (unless `-readonly` is set).
 
 ## Features
 
-- **Secure File Management**: Browse, upload, download, rename, and delete files with path traversal protection
-- **Web Interface**: Clean, Windows-style file manager interface accessible through any web browser
-- **File Preview**: Direct browser preview for images, videos (mp4), PDFs, and text files
-- **Drag & Drop Upload**: Drag files directly from your desktop to upload
-- **Context Menus**: Right-click context menus for file operations
-- **Token Authentication**: Optional token-based authentication for network access
-- **Read-only Mode**: Restrict to read-only operations when needed
-- **Cross-platform**: Works on Windows, macOS, and Linux
+- **File Management**: Browse, upload, download, rename, and delete files
+- **Cinema Mode**: Fullscreen image/video viewer with keyboard and scroll navigation
+- **Sortable Columns**: Click Name/Size/Modified headers to sort, state persists in URL
+- **URL State Sync**: Directory path and sort order encoded in URL for easy sharing
+- **Drag & Drop Upload**: Drag files from desktop to upload with progress bar
+- **Token Authentication**: Optional token-based authentication
+- **Read-only Mode**: Restrict to read-only operations
+- **Path Traversal Protection**: All paths validated to stay within the root directory
+- **Cross-platform**: macOS (Intel/Apple Silicon), Linux, Windows
 
-## Quick Start
+## Install
 
-1. **Build the application:**
-   ```bash
-   go build -o websz ./cmd/websz
-   ```
+Download a pre-built binary from [Releases](https://github.com/warriorguo/websz/releases), or build from source:
 
-2. **Run with default settings:**
-   ```bash
-   ./websz
-   ```
-
-3. **Open your browser and visit:**
-   ```
-   http://localhost:18090
-   ```
+```bash
+go build -o websz ./cmd/websz
+```
 
 ## Usage
-
-### Command Line Options
 
 ```bash
 websz [options]
 
 Options:
-  -root string
-        Root directory (default: current working directory)
-  -listen string
-        Listen address (default "0.0.0.0:18090")
-  -token string
-        Access token (default: none, recommended for non-localhost)
-  -readonly
-        Read-only mode
-  -help
-        Show help
+  -root string      Root directory (default: current working directory)
+  -listen string    Listen address (default "0.0.0.0:18090")
+  -token string     Access token (default: none, auto-generated for non-localhost)
+  -readonly         Read-only mode
+  -help             Show help
 ```
 
 ### Examples
 
 ```bash
-# Serve current directory on localhost only
+# Serve current directory on localhost only (safest)
 ./websz -listen 127.0.0.1:8080
 
 # Serve specific directory with token authentication
-./websz -root /home/user/files -token mytoken123
+./websz -root /home/user/files -token mysecrettoken
 
 # Read-only mode for safe browsing
-./websz -readonly
+./websz -root /data/media -readonly
 
-# Serve on all interfaces with auto-generated token
+# LAN access (token auto-generated, check console output)
 ./websz
 ```
 
-## API Endpoints
+## API
 
-The application provides RESTful API endpoints:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/list?p=/path` | List directory contents |
+| GET | `/api/stat?p=/path` | Get file/directory info |
+| GET | `/api/download?p=/path` | Download file |
+| GET | `/open?p=/path` | Preview file in browser |
+| POST | `/api/upload?p=/path` | Upload files (multipart) |
+| PUT | `/api/put?p=/path` | Upload single file (raw body) |
+| POST | `/api/mkdir` | Create directory |
+| POST | `/api/rename` | Rename/move file |
+| POST | `/api/delete` | Delete file/directory |
 
-- `GET /api/list?p=/path` - List directory contents
-- `GET /api/stat?p=/path` - Get file/directory properties  
-- `GET /api/download?p=/path` - Download file
-- `GET /open?p=/path` - Preview file in browser
-- `POST /api/upload?p=/path` - Upload files (multipart form)
-- `PUT /api/put?p=/path` - Upload single file (raw body)
-- `POST /api/mkdir` - Create directory
-- `POST /api/rename` - Rename/move files
-- `POST /api/delete` - Delete files/directories
+All responses return JSON: `{"ok": true, "data": {...}, "error": ""}`
 
-All API responses follow the format:
-```json
-{
-  "ok": true,
-  "data": {...},
-  "error": ""
-}
-```
-
-## Security Features
-
-- **Path Traversal Protection**: Prevents access to files outside the root directory
-- **Token Authentication**: Optional token-based access control
-- **Safe File Operations**: Atomic file uploads and proper error handling
-- **CORS Support**: Configurable cross-origin resource sharing
-
-## File Preview Support
-
-The following file types can be previewed directly in the browser:
-
-- **Images**: PNG, JPG, JPEG, GIF, WebP
-- **Videos**: MP4, MOV, AVI, WebM (with seek/range support)  
-- **Documents**: PDF, TXT, Markdown
-- **Other files**: Download only
-
-## Frontend Features
-
-- **File List View**: Windows-style details view with sortable columns
-- **Breadcrumb Navigation**: Click to navigate to parent directories
-- **File Operations**: Upload, download, rename, delete, create folders
-- **Context Menus**: Right-click for file-specific actions
-- **Drag & Drop**: Drag files from desktop to upload
-- **File Properties**: View detailed file information
-
-## Development
-
-### Project Structure
+## Project Structure
 
 ```
-cmd/websz/          # Main application entry point
-internal/fs/        # File system operations and security
-internal/server/    # HTTP server and API handlers  
-web/dist/          # Frontend static files (HTML, CSS, JS)
-```
-
-### Security Testing
-
-Run the security test to verify path traversal protection:
-
-```bash
-go run test_security.go
+cmd/websz/          # Entry point, CLI flags
+internal/fs/        # File system operations and path security
+internal/server/    # HTTP server, routes, handlers
+web/dist/           # Frontend static files (embedded at build time)
+web/embed.go        # Embed FS export
 ```
 
 ## License
 
-This project is open source. Use it responsibly and ensure proper security measures when exposing to networks.
-
-## Notes
-
-- Default binding to `0.0.0.0:18090` allows network access - use token authentication
-- Large file uploads are supported with streaming to prevent memory issues
-- File conflicts during upload are auto-resolved with numbered suffixes
-- Read-only mode disables all write operations for safe browsing
+MIT
