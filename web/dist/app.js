@@ -14,8 +14,9 @@ const CINEMA_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.s
 const CINEMA_VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogg'];
 
 document.addEventListener('DOMContentLoaded', function() {
-    const initPath = location.hash ? decodeURIComponent(location.hash.slice(1)) : '/';
-    loadDirectory(initPath);
+    parseHashState();
+    loadDirectory(currentPath);
+    updateSortIndicators();
     setupDragAndDrop();
     setupContextMenu();
 });
@@ -25,16 +26,39 @@ window.addEventListener('popstate', function(e) {
         exitCinemaMode(true);
         return;
     }
-    const path = location.hash ? decodeURIComponent(location.hash.slice(1)) : '/';
-    if (path !== currentPath) {
-        loadDirectory(path, true);
+    parseHashState();
+    updateSortIndicators();
+    if (currentPath) {
+        loadDirectory(currentPath, true);
     }
 });
+
+function parseHashState() {
+    const hash = location.hash.slice(1);
+    if (!hash) { currentPath = '/'; return; }
+    const qIdx = hash.indexOf('?');
+    if (qIdx === -1) {
+        currentPath = decodeURIComponent(hash);
+    } else {
+        currentPath = decodeURIComponent(hash.substring(0, qIdx));
+        const params = new URLSearchParams(hash.substring(qIdx + 1));
+        if (params.get('sort')) sortField = params.get('sort');
+        if (params.get('order')) sortAsc = params.get('order') === 'asc';
+    }
+}
+
+function buildHash() {
+    let h = '#' + encodeURIComponent(currentPath);
+    if (sortField !== 'name' || !sortAsc) {
+        h += '?sort=' + sortField + '&order=' + (sortAsc ? 'asc' : 'desc');
+    }
+    return h;
+}
 
 function loadDirectory(path, skipPush) {
     currentPath = path;
     if (!skipPush) {
-        history.pushState(null, '', '#' + encodeURIComponent(path));
+        history.pushState(null, '', buildHash());
     }
     updateBreadcrumb();
     
@@ -120,6 +144,7 @@ function sortBy(field) {
         sortAsc = true;
     }
     updateSortIndicators();
+    history.replaceState(null, '', buildHash());
     renderFileList(sortFiles(currentFiles));
 }
 
