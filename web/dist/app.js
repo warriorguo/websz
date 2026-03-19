@@ -9,6 +9,8 @@ let sortAsc = true;
 let cinemaMediaFiles = [];
 let cinemaIndex = 0;
 let cinemaActive = false;
+let cinemaShuffleMode = false;
+let cinemaShuffleOrder = [];
 
 const CINEMA_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
 const CINEMA_VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogg'];
@@ -691,10 +693,20 @@ function isCinemaImage(ext) {
     return CINEMA_IMAGE_EXTS.includes((ext || '').toLowerCase());
 }
 
+function buildShuffleOrder() {
+    cinemaShuffleOrder = Array.from({ length: cinemaMediaFiles.length }, (_, i) => i);
+    for (let i = cinemaShuffleOrder.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cinemaShuffleOrder[i], cinemaShuffleOrder[j]] = [cinemaShuffleOrder[j], cinemaShuffleOrder[i]];
+    }
+}
+
 function enterCinemaMode() {
     if (cinemaMediaFiles.length === 0) return;
     cinemaActive = true;
     cinemaIndex = 0;
+    buildShuffleOrder();
+    updateCinemaShuffleBtn();
     history.pushState({ cinema: true }, '');
     document.getElementById('cinemaOverlay').classList.add('active');
     renderCinemaItem();
@@ -718,7 +730,8 @@ function exitCinemaMode(fromPopstate) {
 }
 
 function renderCinemaItem() {
-    const file = cinemaMediaFiles[cinemaIndex];
+    const fileIdx = cinemaShuffleMode ? cinemaShuffleOrder[cinemaIndex] : cinemaIndex;
+    const file = cinemaMediaFiles[fileIdx];
     const container = document.getElementById('cinemaMediaContainer');
     const ext = (file.ext || '').toLowerCase();
     const url = `/open?p=${encodeURIComponent(file.path)}`;
@@ -773,6 +786,29 @@ function cinemaWheelHandler(e) {
     } else if (e.deltaY < 0) {
         cinemaPrev();
     }
+}
+
+function toggleCinemaShuffle() {
+    cinemaShuffleMode = !cinemaShuffleMode;
+    if (cinemaShuffleMode) {
+        // Rebuild so current file stays first in shuffled order
+        const currentFileIdx = cinemaIndex;
+        buildShuffleOrder();
+        // Move current file to position 0 in shuffle order
+        const pos = cinemaShuffleOrder.indexOf(currentFileIdx);
+        if (pos > 0) {
+            [cinemaShuffleOrder[0], cinemaShuffleOrder[pos]] = [cinemaShuffleOrder[pos], cinemaShuffleOrder[0]];
+        }
+        cinemaIndex = 0;
+    }
+    updateCinemaShuffleBtn();
+    renderCinemaItem();
+}
+
+function updateCinemaShuffleBtn() {
+    const btn = document.getElementById('cinemaShuffleBtn');
+    if (!btn) return;
+    btn.classList.toggle('active', cinemaShuffleMode);
 }
 
 // ---- End Cinema Mode ----
