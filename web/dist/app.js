@@ -4,6 +4,7 @@ let contextMenuItem = null;
 let currentFiles = [];
 let sortField = 'name';
 let sortAsc = true;
+let viewMode = localStorage.getItem('websz_viewMode') || 'list';
 
 // Cinema mode state
 let cinemaMediaFiles = [];
@@ -17,6 +18,7 @@ const CINEMA_VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogg'];
 
 document.addEventListener('DOMContentLoaded', function() {
     parseHashState();
+    applyViewMode();
     loadDirectory(currentPath);
     updateSortIndicators();
     setupDragAndDrop();
@@ -174,6 +176,9 @@ function renderFileList(files) {
     });
     const cinemaBtn = document.getElementById('cinemaBtn');
     cinemaBtn.style.display = cinemaMediaFiles.length > 0 ? '' : 'none';
+
+    // Also render gallery view
+    renderGalleryView(files);
 
     if (files.length === 0) {
         const row = tbody.insertRow();
@@ -812,6 +817,164 @@ function updateCinemaShuffleBtn() {
 }
 
 // ---- End Cinema Mode ----
+
+// ---- Gallery Mode ----
+
+const GALLERY_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.ico'];
+const GALLERY_MAX_CONCURRENT = 3;
+let galleryLoadQueue = [];
+let galleryActiveLoads = 0;
+let galleryObserver = null;
+
+function isGalleryImage(ext) {
+    return GALLERY_IMAGE_EXTS.includes((ext || '').toLowerCase());
+}
+
+function setViewMode(mode) {
+    viewMode = mode;
+    localStorage.setItem('websz_viewMode', mode);
+    applyViewMode();
+}
+
+function applyViewMode() {
+    const fileList = document.querySelector('.file-list');
+    const galleryGrid = document.getElementById('galleryGrid');
+    const listBtn = document.getElementById('viewListBtn');
+    const galleryBtn = document.getElementById('viewGalleryBtn');
+
+    if (viewMode === 'gallery') {
+        fileList.style.display = 'none';
+        galleryGrid.style.display = '';
+        listBtn.classList.remove('active');
+        galleryBtn.classList.add('active');
+    } else {
+        fileList.style.display = '';
+        galleryGrid.style.display = 'none';
+        listBtn.classList.add('active');
+        galleryBtn.classList.remove('active');
+    }
+}
+
+function renderGalleryView(files) {
+    const grid = document.getElementById('galleryGrid');
+    grid.innerHTML = '';
+
+    // Clean up previous observer and queue
+    if (galleryObserver) {
+        galleryObserver.disconnect();
+        galleryObserver = null;
+    }
+    galleryLoadQueue = [];
+    galleryActiveLoads = 0;
+
+    if (files.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;padding:40px">No files found</div>';
+        return;
+    }
+
+    galleryObserver = new IntersectionObserver(galleryIntersectionCallback, {
+        root: grid.parentElement,
+        rootMargin: '200px',
+        threshold: 0
+    });
+
+    files.forEach(file => {
+        const item = document.createElement('div');
+        item.className = 'gallery-item';
+        item.dataset.path = file.path;
+        item.dataset.isDir = file.isDir;
+        item.dataset.name = file.name;
+
+        const thumb = document.createElement('div');
+        thumb.className = 'gallery-thumb';
+
+        const ext = (file.ext || '').toLowerCase();
+        if (!file.isDir && isGalleryImage(ext)) {
+            // Show loading spinner; actual image loaded via IntersectionObserver
+            thumb.innerHTML = '<div class="gallery-thumb-loading"></div>';
+            thumb.dataset.imagePath = file.path;
+        } else {
+            thumb.innerHTML = '<span class="gallery-thumb-placeholder">' + (file.isDir ? '📁' : getFileIcon(file.ext)) + '</span>';
+        }
+
+        const label = document.createElement('div');
+        label.className = 'gallery-label';
+        label.textContent = file.name;
+        label.title = file.name;
+
+        item.appendChild(thumb);
+        item.appendChild(label);
+
+        item.ondblclick = () => {
+            if (file.isDir) {
+                loadDirectory(file.path);
+            } else {
+                openFile(file.path);
+            }
+        };
+
+        item.onclick = (e) => {
+            if (e.detail === 1) {
+                document.querySelectorAll('.gallery-item').forEach(el => el.classList.remove('selected'));
+                item.classList.add('selected');
+            }
+        };
+
+        item.oncontextmenu = (e) => {
+            e.preventDefault();
+            contextMenuItem = { dataset: { path: file.path, isDir: String(file.isDir), name: file.name } };
+            showContextMenu(e, contextMenuItem);
+        };
+
+        grid.appendChild(item);
+
+        // Observe for lazy loading if it's an image
+        if (thumb.dataset.imagePath) {
+            galleryObserver.observe(thumb);
+        }
+    });
+}
+
+function galleryIntersectionCallback(entries) {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const thumb = entry.target;
+            galleryObserver.unobserve(thumb);
+            const imagePath = thumb.dataset.imagePath;
+            if (imagePath) {
+                enqueueGalleryLoad(thumb, imagePath);
+            }
+        }
+    });
+}
+
+function enqueueGalleryLoad(thumb, imagePath) {
+    galleryLoadQueue.push({ thumb, imagePath });
+    processGalleryQueue();
+}
+
+function processGalleryQueue() {
+    while (galleryActiveLoads < GALLERY_MAX_CONCURRENT && galleryLoadQueue.length > 0) {
+        const { thumb, imagePath } = galleryLoadQueue.shift();
+        galleryActiveLoads++;
+
+        const img = new Image();
+        img.onload = () => {
+            thumb.innerHTML = '';
+            thumb.appendChild(img);
+            galleryActiveLoads--;
+            processGalleryQueue();
+        };
+        img.onerror = () => {
+            thumb.innerHTML = '<span class="gallery-thumb-placeholder">🖼️</span>';
+            galleryActiveLoads--;
+            processGalleryQueue();
+        };
+        img.src = `/open?p=${encodeURIComponent(imagePath)}`;
+    }
+}
+
+// ---- End Gallery Mode ----
 
 function showError(message) {
     const existing = document.querySelector('.error');

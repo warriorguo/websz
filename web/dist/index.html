@@ -457,6 +457,106 @@
             color: #ffc107;
         }
 
+        /* Gallery Mode */
+        .view-toggle-btn {
+            background: none;
+            border: 1px solid #ddd;
+            color: #666;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            transition: all 0.2s;
+        }
+
+        .view-toggle-btn:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .view-toggle-btn.active {
+            background: #0066cc;
+            border-color: #0066cc;
+            color: white;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, 220px);
+            grid-auto-rows: min-content;
+            gap: 16px;
+            padding: 16px;
+            flex: 1;
+            overflow-y: auto;
+            align-content: start;
+            justify-content: center;
+        }
+
+        .gallery-item {
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: box-shadow 0.2s, transform 0.15s;
+            background: #fafafa;
+        }
+
+        .gallery-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            transform: translateY(-1px);
+        }
+
+        .gallery-item.selected {
+            border-color: #0066cc;
+            box-shadow: 0 0 0 2px rgba(0,102,204,0.3);
+        }
+
+        .gallery-thumb {
+            width: 100%;
+            aspect-ratio: 4/3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f0f0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .gallery-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .gallery-thumb-placeholder {
+            font-size: 48px;
+            color: #bbb;
+        }
+
+        .gallery-thumb-loading {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #e0e0e0;
+            border-top-color: #0066cc;
+            border-radius: 50%;
+            animation: gallery-spin 0.8s linear infinite;
+        }
+
+        @keyframes gallery-spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .gallery-label {
+            padding: 8px 10px;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+            border-top: 1px solid #f0f0f0;
+        }
+
         .cinema-hint {
             position: absolute;
             bottom: 20px;
@@ -482,6 +582,8 @@
         <div class="toolbar">
             <div class="breadcrumb" id="breadcrumb"></div>
             <div class="toolbar-buttons">
+                <button class="view-toggle-btn active" id="viewListBtn" onclick="setViewMode('list')" title="List view">☰</button>
+                <button class="view-toggle-btn" id="viewGalleryBtn" onclick="setViewMode('gallery')" title="Gallery view">▦</button>
                 <button class="btn btn-secondary" onclick="refresh()">Refresh</button>
                 <input type="file" id="fileInput" multiple style="display: none;" onchange="uploadFiles()">
                 <button class="btn" onclick="document.getElementById('fileInput').click()">Upload</button>
@@ -506,6 +608,7 @@
                     </tbody>
                 </table>
             </div>
+            <div class="gallery-grid" id="galleryGrid" style="display:none"></div>
         </div>
         
         <div class="upload-area" id="uploadArea">
