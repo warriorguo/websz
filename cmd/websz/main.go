@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/warriorguo/websz/internal/server"
+	"github.com/warriorguo/websz/internal/updater"
 	"github.com/warriorguo/websz/web"
 )
 
@@ -21,12 +22,34 @@ func main() {
 		listen   = flag.String("listen", "0.0.0.0:18090", "Listen address")
 		token    = flag.String("token", "", "Access token (default: none, recommended for non-localhost)")
 		readonly = flag.Bool("readonly", false, "Read-only mode")
-		help     = flag.Bool("help", false, "Show help")
+		help    = flag.Bool("help", false, "Show help")
+		version     = flag.Bool("version", false, "Print version and exit")
+		checkUpdate = flag.Bool("check-update", false, "Check latest version available")
+		update      = flag.Bool("update", false, "Update to latest version")
 	)
 	flag.Parse()
 
 	if *help {
 		printHelp()
+		return
+	}
+
+	if *version {
+		updater.PrintVersion()
+		return
+	}
+
+	if *checkUpdate {
+		if err := updater.CheckLatest(); err != nil {
+			log.Fatalf("Check update failed: %v", err)
+		}
+		return
+	}
+
+	if *update {
+		if err := updater.Update(); err != nil {
+			log.Fatalf("Update failed: %v", err)
+		}
 		return
 	}
 
