@@ -258,6 +258,7 @@ function getFileIcon(ext) {
     const iconMap = {
         '.jpg': '🖼️', '.jpeg': '🖼️', '.png': '🖼️', '.gif': '🖼️', '.webp': '🖼️',
         '.mp4': '🎥', '.mov': '🎥', '.avi': '🎥', '.webm': '🎥',
+        '.mp3': '🎵', '.wav': '🎵', '.ogg': '🎵', '.aac': '🎵', '.flac': '🎵', '.m4a': '🎵', '.wma': '🎵',
         '.pdf': '📄',
         '.txt': '📝', '.md': '📝',
         '.zip': '📦', '.tar': '📦', '.gz': '📦',
@@ -821,6 +822,7 @@ function updateCinemaShuffleBtn() {
 // ---- Gallery Mode ----
 
 const GALLERY_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.ico'];
+const GALLERY_AUDIO_EXTS = ['.mp3', '.wav', '.ogg', '.aac', '.flac', '.m4a', '.wma'];
 const GALLERY_MAX_CONCURRENT = 3;
 let galleryLoadQueue = [];
 let galleryActiveLoads = 0;
@@ -828,6 +830,10 @@ let galleryObserver = null;
 
 function isGalleryImage(ext) {
     return GALLERY_IMAGE_EXTS.includes((ext || '').toLowerCase());
+}
+
+function isGalleryAudio(ext) {
+    return GALLERY_AUDIO_EXTS.includes((ext || '').toLowerCase());
 }
 
 function setViewMode(mode) {
@@ -893,6 +899,9 @@ function renderGalleryView(files) {
             // Show loading spinner; actual image loaded via IntersectionObserver
             thumb.innerHTML = '<div class="gallery-thumb-loading"></div>';
             thumb.dataset.imagePath = file.path;
+        } else if (!file.isDir && isGalleryAudio(ext)) {
+            thumb.innerHTML = '<span class="gallery-thumb-placeholder">🎵</span>';
+            thumb.dataset.audioPath = file.path;
         } else {
             thumb.innerHTML = '<span class="gallery-thumb-placeholder">' + (file.isDir ? '📁' : getFileIcon(file.ext)) + '</span>';
         }
@@ -925,6 +934,32 @@ function renderGalleryView(files) {
             contextMenuItem = { dataset: { path: file.path, isDir: String(file.isDir), name: file.name } };
             showContextMenu(e, contextMenuItem);
         };
+
+        if (thumb.dataset.audioPath) {
+            let hoverAudio = null;
+            item.addEventListener('mouseenter', () => {
+                if (hoverAudio) return;
+                hoverAudio = new Audio(`/open?p=${encodeURIComponent(thumb.dataset.audioPath)}`);
+                hoverAudio.loop = false;
+                thumb.querySelector('.gallery-thumb-placeholder').textContent = '🔊';
+                hoverAudio.addEventListener('ended', () => {
+                    thumb.querySelector('.gallery-thumb-placeholder').textContent = '🎵';
+                    hoverAudio = null;
+                });
+                hoverAudio.play().catch(() => {
+                    thumb.querySelector('.gallery-thumb-placeholder').textContent = '🎵';
+                    hoverAudio = null;
+                });
+            });
+            item.addEventListener('mouseleave', () => {
+                if (hoverAudio) {
+                    hoverAudio.pause();
+                    hoverAudio.src = '';
+                    hoverAudio = null;
+                }
+                thumb.querySelector('.gallery-thumb-placeholder').textContent = '🎵';
+            });
+        }
 
         grid.appendChild(item);
 
