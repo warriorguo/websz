@@ -12,6 +12,7 @@ let cinemaIndex = 0;
 let cinemaActive = false;
 let cinemaShuffleMode = false;
 let cinemaShuffleOrder = [];
+let cinemaVideoRotation = 0;
 
 const CINEMA_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
 const CINEMA_VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogg'];
@@ -746,14 +747,49 @@ function renderCinemaItem() {
     const oldVideo = container.querySelector('video');
     if (oldVideo) { oldVideo.pause(); oldVideo.src = ''; }
 
+    const rotateBtn = document.getElementById('cinemaRotateBtn');
+    cinemaVideoRotation = 0;
     if (isCinemaImage(ext)) {
         container.innerHTML = `<img src="${url}" alt="${file.name}">`;
+        if (rotateBtn) rotateBtn.style.display = 'none';
     } else {
         container.innerHTML = `<video src="${url}" autoplay controls loop></video>`;
+        if (rotateBtn) {
+            rotateBtn.style.display = '';
+            updateCinemaRotateBtn();
+        }
     }
 
     document.getElementById('cinemaFileName').textContent = file.name;
     document.getElementById('cinemaCounter').textContent = `${cinemaIndex + 1} / ${cinemaMediaFiles.length}`;
+}
+
+function cycleCinemaVideoRotation() {
+    cinemaVideoRotation = (cinemaVideoRotation + 90) % 360;
+    applyCinemaVideoRotation();
+    updateCinemaRotateBtn();
+}
+
+function applyCinemaVideoRotation() {
+    const container = document.getElementById('cinemaMediaContainer');
+    const video = container.querySelector('video');
+    if (!video) return;
+    const r = cinemaVideoRotation;
+    video.style.transform = r ? `rotate(${r}deg)` : '';
+    if (r === 90 || r === 270) {
+        video.style.maxWidth = container.clientHeight + 'px';
+        video.style.maxHeight = container.clientWidth + 'px';
+    } else {
+        video.style.maxWidth = '';
+        video.style.maxHeight = '';
+    }
+}
+
+function updateCinemaRotateBtn() {
+    const btn = document.getElementById('cinemaRotateBtn');
+    if (!btn) return;
+    btn.textContent = cinemaVideoRotation ? `↻ ${cinemaVideoRotation}°` : '↻ Rotate';
+    btn.classList.toggle('active', cinemaVideoRotation !== 0);
 }
 
 function cinemaNext() {
