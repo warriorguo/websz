@@ -69,9 +69,34 @@
             width: 220px;
         }
 
+        .toolbar-input-filter {
+            width: 160px;
+        }
+
         .toolbar-input:focus {
             outline: none;
             border-color: #0066cc;
+        }
+
+        .filter-mode-btn {
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            color: #666;
+            padding: 7px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            min-width: 36px;
+        }
+
+        .filter-mode-btn:hover {
+            background: #e6e6e6;
+        }
+
+        .filter-mode-btn.active {
+            background: #0066cc;
+            border-color: #0066cc;
+            color: #fff;
         }
 
         .search-banner {
@@ -617,6 +642,9 @@
             <div class="toolbar-buttons">
                 <input type="text" id="findInput" class="toolbar-input" placeholder="Find in folder + subfolders..." onkeydown="if(event.key==='Enter')doFind()">
                 <button class="btn btn-secondary" onclick="doFind()">Find</button>
+                <input type="text" id="filterInput" class="toolbar-input toolbar-input-filter" placeholder="Filter current list..." oninput="applyFilter()">
+                <button class="filter-mode-btn active" id="filterIncludeBtn" onclick="setFilterMode('include')" title="Show only matching">In</button>
+                <button class="filter-mode-btn" id="filterExcludeBtn" onclick="setFilterMode('exclude')" title="Hide matching">Out</button>
                 <button class="view-toggle-btn active" id="viewListBtn" onclick="setViewMode('list')" title="List view">☰</button>
                 <button class="view-toggle-btn" id="viewGalleryBtn" onclick="setViewMode('gallery')" title="Gallery view">▦</button>
                 <button class="btn btn-secondary" onclick="refresh()">Refresh</button>

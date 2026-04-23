@@ -11,6 +11,9 @@ let searchQuery = '';
 let searchRoot = '';
 let searchTruncated = false;
 
+let filterQuery = '';
+let filterMode = 'include';
+
 // Cinema mode state
 let cinemaMediaFiles = [];
 let cinemaIndex = 0;
@@ -76,6 +79,7 @@ function loadDirectory(path, skipPush) {
         const input = document.getElementById('findInput');
         if (input) input.value = '';
     }
+    resetFilter();
     updateBreadcrumb();
     
     console.log('Loading directory:', path);
@@ -92,7 +96,7 @@ function loadDirectory(path, skipPush) {
             console.log('Received data:', data);
             if (data.ok) {
                 currentFiles = data.data.items || [];
-                renderFileList(sortFiles(currentFiles));
+                renderFileList(sortFiles(filterFiles(currentFiles)));
             } else {
                 showError(data.error || 'Unknown error');
             }
@@ -161,7 +165,7 @@ function sortBy(field) {
     }
     updateSortIndicators();
     history.replaceState(null, '', buildHash());
-    renderFileList(sortFiles(currentFiles));
+    renderFileList(sortFiles(filterFiles(currentFiles)));
 }
 
 function updateSortIndicators() {
@@ -1063,6 +1067,42 @@ function processGalleryQueue() {
 
 // ---- End Gallery Mode ----
 
+function filterFiles(files) {
+    const q = filterQuery.trim().toLowerCase();
+    if (!q) return files;
+    return files.filter(f => {
+        const match = f.name.toLowerCase().includes(q);
+        return filterMode === 'include' ? match : !match;
+    });
+}
+
+function applyFilter() {
+    const input = document.getElementById('filterInput');
+    filterQuery = input ? input.value : '';
+    renderFileList(sortFiles(filterFiles(currentFiles)));
+}
+
+function setFilterMode(mode) {
+    if (mode !== 'include' && mode !== 'exclude') return;
+    filterMode = mode;
+    const inBtn = document.getElementById('filterIncludeBtn');
+    const outBtn = document.getElementById('filterExcludeBtn');
+    if (inBtn) inBtn.classList.toggle('active', mode === 'include');
+    if (outBtn) outBtn.classList.toggle('active', mode === 'exclude');
+    renderFileList(sortFiles(filterFiles(currentFiles)));
+}
+
+function resetFilter() {
+    filterQuery = '';
+    filterMode = 'include';
+    const input = document.getElementById('filterInput');
+    if (input) input.value = '';
+    const inBtn = document.getElementById('filterIncludeBtn');
+    const outBtn = document.getElementById('filterExcludeBtn');
+    if (inBtn) inBtn.classList.add('active');
+    if (outBtn) outBtn.classList.remove('active');
+}
+
 function escapeHTML(s) {
     return String(s).replace(/[&<>"']/g, c => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -1092,7 +1132,7 @@ function doFind() {
             searchTruncated = !!data.data.truncated;
             currentFiles = data.data.items || [];
             updateSearchBanner();
-            renderFileList(sortFiles(currentFiles));
+            renderFileList(sortFiles(filterFiles(currentFiles)));
         })
         .catch(error => {
             showError('Find failed: ' + error.message);
