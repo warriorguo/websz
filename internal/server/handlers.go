@@ -32,6 +32,44 @@ func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) handleFind(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		s.handleMethodNotAllowed(w, "GET")
+		return
+	}
+
+	p := s.getPath(r)
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if q == "" {
+		writeError(w, http.StatusBadRequest, "query parameter 'q' is required")
+		return
+	}
+
+	limit := 500
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 5000 {
+			limit = n
+		}
+	}
+
+	results, truncated, err := s.fm.Find(p, q, limit)
+	if err != nil {
+		if os.IsNotExist(err) {
+			writeError(w, http.StatusNotFound, "Directory not found")
+			return
+		}
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"items":     results,
+		"truncated": truncated,
+		"query":     q,
+		"root":      p,
+	})
+}
+
 func (s *Server) handleStat(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		s.handleMethodNotAllowed(w, "GET")

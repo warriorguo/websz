@@ -6,6 +6,11 @@ let sortField = 'name';
 let sortAsc = true;
 let viewMode = localStorage.getItem('websz_viewMode') || 'list';
 
+let searchActive = false;
+let searchQuery = '';
+let searchRoot = '';
+let searchTruncated = false;
+
 // Cinema mode state
 let cinemaMediaFiles = [];
 let cinemaIndex = 0;
@@ -64,6 +69,12 @@ function loadDirectory(path, skipPush) {
     currentPath = path;
     if (!skipPush) {
         history.pushState(null, '', buildHash());
+    }
+    if (searchActive) {
+        searchActive = false;
+        updateSearchBanner();
+        const input = document.getElementById('findInput');
+        if (input) input.value = '';
     }
     updateBreadcrumb();
     
@@ -219,12 +230,17 @@ function renderFileList(files) {
         };
         
         const nameCell = row.insertCell(0);
-        nameCell.innerHTML = `
+        let nameHTML = `
             <div class="file-name">
                 <span class="file-icon">${file.isDir ? '📁' : getFileIcon(file.ext)}</span>
-                ${file.name}
+                ${escapeHTML(file.name)}
             </div>
         `;
+        if (searchActive) {
+            const parent = file.path.substring(0, file.path.lastIndexOf('/')) || '/';
+            nameHTML += `<div class="file-name-path" title="${escapeAttr(parent)}">${escapeHTML(parent)}</div>`;
+        }
+        nameCell.innerHTML = nameHTML;
         
         const sizeCell = row.insertCell(1);
         sizeCell.textContent = file.isDir ? '' : formatFileSize(file.size);
@@ -1046,6 +1062,64 @@ function processGalleryQueue() {
 }
 
 // ---- End Gallery Mode ----
+
+function escapeHTML(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[c]);
+}
+
+function escapeAttr(s) {
+    return escapeHTML(s);
+}
+
+function doFind() {
+    const input = document.getElementById('findInput');
+    const q = (input.value || '').trim();
+    if (!q) return;
+
+    searchQuery = q;
+    searchRoot = currentPath;
+
+    fetch(`/api/find?p=${encodeURIComponent(currentPath)}&q=${encodeURIComponent(q)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.ok) {
+                showError(data.error || 'Find failed');
+                return;
+            }
+            searchActive = true;
+            searchTruncated = !!data.data.truncated;
+            currentFiles = data.data.items || [];
+            updateSearchBanner();
+            renderFileList(sortFiles(currentFiles));
+        })
+        .catch(error => {
+            showError('Find failed: ' + error.message);
+        });
+}
+
+function clearFind() {
+    searchActive = false;
+    searchQuery = '';
+    document.getElementById('findInput').value = '';
+    updateSearchBanner();
+    loadDirectory(currentPath, true);
+}
+
+function updateSearchBanner() {
+    const banner = document.getElementById('searchBanner');
+    const text = document.getElementById('searchBannerText');
+    if (!banner || !text) return;
+    if (searchActive) {
+        const count = currentFiles.length;
+        const suffix = searchTruncated ? ' (truncated)' : '';
+        text.textContent = `Found ${count} match${count === 1 ? '' : 'es'} for "${searchQuery}" in ${searchRoot}${suffix}`;
+        banner.style.display = '';
+    } else {
+        banner.style.display = 'none';
+    }
+}
 
 function showError(message) {
     const existing = document.querySelector('.error');

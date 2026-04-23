@@ -58,6 +58,39 @@
         .toolbar-buttons {
             display: flex;
             gap: 8px;
+            align-items: center;
+        }
+
+        .toolbar-input {
+            padding: 7px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 220px;
+        }
+
+        .toolbar-input:focus {
+            outline: none;
+            border-color: #0066cc;
+        }
+
+        .search-banner {
+            background: #fff8e1;
+            border-bottom: 1px solid #ffe0a3;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 13px;
+            color: #5d4400;
+        }
+
+        .file-name-path {
+            font-size: 11px;
+            color: #888;
+            margin-left: 24px;
+            margin-top: 2px;
         }
         
         .btn {
@@ -582,6 +615,8 @@
         <div class="toolbar">
             <div class="breadcrumb" id="breadcrumb"></div>
             <div class="toolbar-buttons">
+                <input type="text" id="findInput" class="toolbar-input" placeholder="Find in folder + subfolders..." onkeydown="if(event.key==='Enter')doFind()">
+                <button class="btn btn-secondary" onclick="doFind()">Find</button>
                 <button class="view-toggle-btn active" id="viewListBtn" onclick="setViewMode('list')" title="List view">☰</button>
                 <button class="view-toggle-btn" id="viewGalleryBtn" onclick="setViewMode('gallery')" title="Gallery view">▦</button>
                 <button class="btn btn-secondary" onclick="refresh()">Refresh</button>
@@ -593,6 +628,10 @@
         </div>
         
         <div class="main-content">
+            <div class="search-banner" id="searchBanner" style="display:none">
+                <span id="searchBannerText"></span>
+                <button class="btn btn-secondary" onclick="clearFind()">Clear search</button>
+            </div>
             <div class="file-list">
                 <table class="file-table">
                     <thead>

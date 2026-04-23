@@ -64,6 +64,7 @@ func (s *Server) setupRoutes(staticFiles embed.FS) {
 	
 	// API endpoints
 	s.mux.HandleFunc("/api/list", s.handleList)
+	s.mux.HandleFunc("/api/find", s.handleFind)
 	s.mux.HandleFunc("/api/stat", s.handleStat)
 	s.mux.HandleFunc("/api/download", s.handleDownload)
 	s.mux.HandleFunc("/open", s.handleOpen)

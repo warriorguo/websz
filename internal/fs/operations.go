@@ -91,6 +91,72 @@ func (fm *FileManager) List(virtualPath string) ([]FileInfo, error) {
 	return fm.sortFiles(files), nil
 }
 
+func (fm *FileManager) Find(virtualPath, query string, limit int) ([]FileInfo, bool, error) {
+	absPath, err := fm.pathHandler.SafePath(virtualPath)
+	if err != nil {
+		return nil, false, err
+	}
+
+	info, err := os.Stat(absPath)
+	if err != nil {
+		return nil, false, err
+	}
+	if !info.IsDir() {
+		return nil, false, fmt.Errorf("not a directory")
+	}
+
+	q := strings.ToLower(query)
+	var results []FileInfo
+	truncated := false
+
+	err = filepath.WalkDir(absPath, func(entryPath string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if entryPath == absPath {
+			return nil
+		}
+		if !strings.Contains(strings.ToLower(d.Name()), q) {
+			return nil
+		}
+
+		entryInfo, err := d.Info()
+		if err != nil {
+			return nil
+		}
+
+		virtualEntryPath, err := fm.pathHandler.VirtualPath(entryPath)
+		if err != nil {
+			return nil
+		}
+
+		fi := FileInfo{
+			Name:  d.Name(),
+			Path:  virtualEntryPath,
+			IsDir: d.IsDir(),
+			Size:  entryInfo.Size(),
+			MTime: entryInfo.ModTime(),
+		}
+		if !d.IsDir() {
+			ext := strings.ToLower(filepath.Ext(d.Name()))
+			fi.Ext = ext
+			fi.MIME = mime.TypeByExtension(ext)
+		}
+		results = append(results, fi)
+
+		if limit > 0 && len(results) >= limit {
+			truncated = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, false, err
+	}
+
+	return results, truncated, nil
+}
+
 func (fm *FileManager) Stat(virtualPath string) (*FileInfo, error) {
 	absPath, err := fm.pathHandler.SafePath(virtualPath)
 	if err != nil {
