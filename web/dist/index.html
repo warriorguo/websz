@@ -647,6 +647,13 @@
                 <button class="filter-mode-btn" id="filterExcludeBtn" onclick="setFilterMode('exclude')" title="Hide matching">Out</button>
                 <button class="view-toggle-btn active" id="viewListBtn" onclick="setViewMode('list')" title="List view">☰</button>
                 <button class="view-toggle-btn" id="viewGalleryBtn" onclick="setViewMode('gallery')" title="Gallery view">▦</button>
+                <select id="sortFieldSelect" class="toolbar-input" onchange="setSortField(this.value)" title="Sort by">
+                    <option value="name">Sort: Name</option>
+                    <option value="mtime">Sort: Modified</option>
+                    <option value="size">Sort: Size</option>
+                    <option value="type">Sort: Type</option>
+                </select>
+                <button class="btn btn-secondary" id="sortDirBtn" onclick="toggleSortDir()" title="Toggle sort direction">▼</button>
                 <button class="btn btn-secondary" id="cinemaBtn" style="display:none" onclick="enterCinemaMode()">Cinema</button>
             </div>
         </div>
