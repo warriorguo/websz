@@ -29,6 +29,7 @@ func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"items": files,
+		"root":  s.fm.Root(),
 	})
 }
 

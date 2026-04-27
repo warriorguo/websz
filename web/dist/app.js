@@ -2,6 +2,7 @@ let currentPath = '/';
 let selectedItem = null;
 let contextMenuItem = null;
 let currentFiles = [];
+let serverRoot = '';
 let sortField = localStorage.getItem('websz_sortField') || 'name';
 let sortAsc = localStorage.getItem('websz_sortAsc') === 'true';
 let viewMode = localStorage.getItem('websz_viewMode') || 'list';
@@ -32,6 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSortIndicators();
     setupDragAndDrop();
     setupContextMenu();
+    setupCopyPathHotkey();
 });
 
 window.addEventListener('popstate', function(e) {
@@ -96,6 +98,7 @@ function loadDirectory(path, skipPush) {
             console.log('Received data:', data);
             if (data.ok) {
                 currentFiles = data.data.items || [];
+                if (data.data.root) serverRoot = data.data.root;
                 renderFileList(sortFiles(filterFiles(currentFiles)));
             } else {
                 showError(data.error || 'Unknown error');
@@ -482,6 +485,90 @@ function uploadFilesArray(files) {
 function setupContextMenu() {
     document.addEventListener('click', () => {
         hideContextMenu();
+    });
+}
+
+function buildLocalPath(virtualPath) {
+    if (!serverRoot) return virtualPath;
+    let v = virtualPath || '/';
+    if (!v.startsWith('/')) v = '/' + v;
+    if (v === '/') return serverRoot;
+    return serverRoot + v;
+}
+
+function writeClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+    }
+    return new Promise((resolve, reject) => {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            ok ? resolve() : reject(new Error('execCommand copy failed'));
+        } catch (e) {
+            reject(e);
+        }
+    });
+}
+
+function showToast(message) {
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), 1800);
+}
+
+function copyLocalPath() {
+    if (!contextMenuItem) { hideContextMenu(); return; }
+    const virtual = contextMenuItem.dataset.path;
+    const local = buildLocalPath(virtual);
+    writeClipboard(local).then(
+        () => showToast('Path copied: ' + local),
+        () => showError('Failed to copy path to clipboard')
+    );
+    hideContextMenu();
+}
+
+function copySelectedLocalPath() {
+    let path = null;
+    const listSel = document.querySelector('.file-row.selected');
+    if (listSel && listSel.dataset.path) {
+        path = listSel.dataset.path;
+    } else {
+        const gallerySel = document.querySelector('.gallery-item.selected');
+        if (gallerySel && gallerySel.dataset.path) path = gallerySel.dataset.path;
+    }
+    if (!path) return;
+    const local = buildLocalPath(path);
+    writeClipboard(local).then(
+        () => showToast('Path copied: ' + local),
+        () => showError('Failed to copy path to clipboard')
+    );
+}
+
+function setupCopyPathHotkey() {
+    document.addEventListener('keydown', (e) => {
+        if (!(e.shiftKey && (e.metaKey || e.ctrlKey))) return;
+        if (e.key !== 'C' && e.key !== 'c') return;
+        const t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+        const hasSel = document.querySelector('.file-row.selected') || document.querySelector('.gallery-item.selected');
+        if (!hasSel) return;
+        e.preventDefault();
+        copySelectedLocalPath();
     });
 }
 
