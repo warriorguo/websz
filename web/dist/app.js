@@ -3,6 +3,7 @@ let selectedItem = null;
 let contextMenuItem = null;
 let currentFiles = [];
 let serverRoot = '';
+let serverToken = '';
 let sortField = localStorage.getItem('websz_sortField') || 'name';
 let sortAsc = localStorage.getItem('websz_sortAsc') === 'true';
 let viewMode = localStorage.getItem('websz_viewMode') || 'list';
@@ -29,12 +30,24 @@ const CINEMA_VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogg'];
 document.addEventListener('DOMContentLoaded', function() {
     parseHashState();
     applyViewMode();
+    fetchServerToken();
     loadDirectory(currentPath);
     updateSortIndicators();
     setupDragAndDrop();
     setupContextMenu();
     setupCopyPathHotkey();
 });
+
+function fetchServerToken() {
+    fetch('/api/session', { credentials: 'same-origin' })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+            if (data && data.ok && data.data && typeof data.data.token === 'string') {
+                serverToken = data.data.token;
+            }
+        })
+        .catch(() => {});
+}
 
 window.addEventListener('popstate', function(e) {
     if (cinemaActive) {
@@ -546,10 +559,12 @@ function copyLocalPath() {
 function buildShareURL(virtualPath, isDir) {
     const v = virtualPath || '/';
     const origin = window.location.origin;
+    const tokenParam = serverToken ? '?t=' + encodeURIComponent(serverToken) : '';
     if (isDir) {
-        return origin + '/#' + encodeURIComponent(v);
+        return origin + '/' + tokenParam + '#' + encodeURIComponent(v);
     }
-    return origin + '/open?p=' + encodeURIComponent(v);
+    const sep = tokenParam ? '&' : '?';
+    return origin + '/open?p=' + encodeURIComponent(v) + (tokenParam ? sep + 't=' + encodeURIComponent(serverToken) : '');
 }
 
 function copyURL() {

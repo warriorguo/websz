@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"strings"
 
 	fsops "github.com/warriorguo/websz/internal/fs"
@@ -40,7 +41,7 @@ func NewServer(config *Config, staticFiles embed.FS) (*Server, error) {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	handler := corsMiddleware(loggingMiddleware(s.mux))
-	
+
 	// Apply authentication middleware if token is required
 	if s.config.Token != "" && !s.shouldBypassAuth(r.URL.Path) {
 		if !s.isAuthenticated(r) {
@@ -53,9 +54,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/auth", http.StatusFound)
 			return
 		}
+
+		// If access was granted by `?t=` query param (no cookie yet), set the
+		// cookie so subsequent navigation works without the param. For browser
+		// navigations (non-API, non-streaming) also redirect to a clean URL so
+		// the token doesn't linger in the address bar.
+		if s.authenticatedViaQueryParam(r) {
+			s.setAuthCookie(w)
+			if r.Method == "GET" && !strings.HasPrefix(r.URL.Path, "/api/") && r.URL.Path != "/open" {
+				cleanURL := stripTokenParam(r.URL)
+				http.Redirect(w, r, cleanURL, http.StatusFound)
+				return
+			}
+		}
 	}
-	
+
 	handler.ServeHTTP(w, r)
+}
+
+func stripTokenParam(u *url.URL) string {
+	q := u.Query()
+	q.Del("t")
+	clone := *u
+	clone.RawQuery = q.Encode()
+	return clone.RequestURI()
 }
 
 func (s *Server) setupRoutes(staticFiles embed.FS) {
@@ -63,6 +85,7 @@ func (s *Server) setupRoutes(staticFiles embed.FS) {
 	s.mux.HandleFunc("/auth", s.handleAuth)
 	
 	// API endpoints
+	s.mux.HandleFunc("/api/session", s.handleSession)
 	s.mux.HandleFunc("/api/list", s.handleList)
 	s.mux.HandleFunc("/api/find", s.handleFind)
 	s.mux.HandleFunc("/api/stat", s.handleStat)

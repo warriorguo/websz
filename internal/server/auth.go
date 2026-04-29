@@ -248,19 +248,55 @@ func (s *Server) isAuthenticated(r *http.Request) bool {
 	if s.config.Token == "" {
 		return true
 	}
-	
+
 	// Check cookie first
 	cookie, err := r.Cookie(TokenCookieName)
 	if err == nil && cookie.Value == s.config.Token {
 		return true
 	}
-	
+
 	// Check header (for API compatibility)
 	if token := r.Header.Get("X-Websz-Token"); token == s.config.Token {
 		return true
 	}
-	
+
+	// Check query param (for shareable URLs)
+	if token := r.URL.Query().Get("t"); token == s.config.Token {
+		return true
+	}
+
 	return false
+}
+
+func (s *Server) authenticatedViaQueryParam(r *http.Request) bool {
+	if s.config.Token == "" {
+		return false
+	}
+	if cookie, err := r.Cookie(TokenCookieName); err == nil && cookie.Value == s.config.Token {
+		return false
+	}
+	return r.URL.Query().Get("t") == s.config.Token
+}
+
+func (s *Server) setAuthCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     TokenCookieName,
+		Value:    s.config.Token,
+		Path:     "/",
+		MaxAge:   CookieMaxAge,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		s.handleMethodNotAllowed(w, "GET")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{
+		"token": s.config.Token,
+	})
 }
 
 func (s *Server) shouldBypassAuth(path string) bool {
