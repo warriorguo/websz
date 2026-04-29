@@ -2,7 +2,6 @@ package fs
 
 import (
 	"fmt"
-	"net/url"
 	"path"
 	"path/filepath"
 	"strings"
@@ -29,14 +28,9 @@ func (p *PathHandler) SafePath(virtualPath string) (string, error) {
 		return p.root, nil
 	}
 
-	decoded, err := url.QueryUnescape(virtualPath)
-	if err != nil {
-		return "", fmt.Errorf("invalid path encoding: %w", err)
-	}
+	normalized := strings.ReplaceAll(virtualPath, "\\", "/")
 
-	decoded = strings.ReplaceAll(decoded, "\\", "/")
-
-	cleaned := path.Clean("/" + decoded)
+	cleaned := path.Clean("/" + normalized)
 
 	if strings.Contains(cleaned, "..") || strings.Contains(virtualPath, "..") {
 		return "", fmt.Errorf("path traversal attempt: %s", virtualPath)
