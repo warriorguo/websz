@@ -542,33 +542,73 @@ function copyLocalPath() {
     hideContextMenu();
 }
 
-function copySelectedLocalPath() {
-    let path = null;
+function buildShareURL(virtualPath, isDir) {
+    const v = virtualPath || '/';
+    const origin = window.location.origin;
+    if (isDir) {
+        return origin + '/#' + encodeURIComponent(v);
+    }
+    return origin + '/open?p=' + encodeURIComponent(v);
+}
+
+function copyURL() {
+    if (!contextMenuItem) { hideContextMenu(); return; }
+    const virtual = contextMenuItem.dataset.path;
+    const isDir = contextMenuItem.dataset.isDir === 'true';
+    const url = buildShareURL(virtual, isDir);
+    writeClipboard(url).then(
+        () => showToast('URL copied: ' + url),
+        () => showError('Failed to copy URL to clipboard')
+    );
+    hideContextMenu();
+}
+
+function getSelectedItem() {
     const listSel = document.querySelector('.file-row.selected');
     if (listSel && listSel.dataset.path) {
-        path = listSel.dataset.path;
-    } else {
-        const gallerySel = document.querySelector('.gallery-item.selected');
-        if (gallerySel && gallerySel.dataset.path) path = gallerySel.dataset.path;
+        return { path: listSel.dataset.path, isDir: listSel.dataset.isDir === 'true' };
     }
-    if (!path) return;
-    const local = buildLocalPath(path);
+    const gallerySel = document.querySelector('.gallery-item.selected');
+    if (gallerySel && gallerySel.dataset.path) {
+        return { path: gallerySel.dataset.path, isDir: gallerySel.dataset.isDir === 'true' };
+    }
+    return null;
+}
+
+function copySelectedLocalPath() {
+    const sel = getSelectedItem();
+    if (!sel) return;
+    const local = buildLocalPath(sel.path);
     writeClipboard(local).then(
         () => showToast('Path copied: ' + local),
         () => showError('Failed to copy path to clipboard')
     );
 }
 
+function copySelectedURL() {
+    const sel = getSelectedItem();
+    if (!sel) return;
+    const url = buildShareURL(sel.path, sel.isDir);
+    writeClipboard(url).then(
+        () => showToast('URL copied: ' + url),
+        () => showError('Failed to copy URL to clipboard')
+    );
+}
+
 function setupCopyPathHotkey() {
     document.addEventListener('keydown', (e) => {
         if (!(e.shiftKey && (e.metaKey || e.ctrlKey))) return;
-        if (e.key !== 'C' && e.key !== 'c') return;
         const t = e.target;
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
         const hasSel = document.querySelector('.file-row.selected') || document.querySelector('.gallery-item.selected');
         if (!hasSel) return;
-        e.preventDefault();
-        copySelectedLocalPath();
+        if (e.key === 'C' || e.key === 'c') {
+            e.preventDefault();
+            copySelectedLocalPath();
+        } else if (e.key === 'U' || e.key === 'u') {
+            e.preventDefault();
+            copySelectedURL();
+        }
     });
 }
 
