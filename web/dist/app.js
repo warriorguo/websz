@@ -99,6 +99,7 @@ function loadDirectory(path, skipPush) {
             if (data.ok) {
                 currentFiles = data.data.items || [];
                 if (data.data.root) serverRoot = data.data.root;
+                restoreFilterForPath(path);
                 renderFileList(sortFiles(filterFiles(currentFiles)));
             } else {
                 showError(data.error || 'Unknown error');
@@ -1224,6 +1225,45 @@ function processGalleryQueue() {
 
 // ---- End Gallery Mode ----
 
+const FILTER_SESSION_KEY = 'websz_filter';
+
+function saveFilterToSession() {
+    try {
+        if (!filterQuery && filterMode === 'include') {
+            sessionStorage.removeItem(FILTER_SESSION_KEY);
+            return;
+        }
+        sessionStorage.setItem(FILTER_SESSION_KEY, JSON.stringify({
+            q: filterQuery,
+            mode: filterMode,
+            path: currentPath,
+        }));
+    } catch (e) {}
+}
+
+function restoreFilterForPath(path) {
+    try {
+        const raw = sessionStorage.getItem(FILTER_SESSION_KEY);
+        if (!raw) return false;
+        const saved = JSON.parse(raw);
+        if (!saved || saved.path !== path) {
+            sessionStorage.removeItem(FILTER_SESSION_KEY);
+            return false;
+        }
+        filterQuery = saved.q || '';
+        filterMode = saved.mode === 'exclude' ? 'exclude' : 'include';
+        const input = document.getElementById('filterInput');
+        if (input) input.value = filterQuery;
+        const inBtn = document.getElementById('filterIncludeBtn');
+        const outBtn = document.getElementById('filterExcludeBtn');
+        if (inBtn) inBtn.classList.toggle('active', filterMode === 'include');
+        if (outBtn) outBtn.classList.toggle('active', filterMode === 'exclude');
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
 function filterFiles(files) {
     const q = filterQuery.trim().toLowerCase();
     if (!q) return files;
@@ -1236,6 +1276,7 @@ function filterFiles(files) {
 function applyFilter() {
     const input = document.getElementById('filterInput');
     filterQuery = input ? input.value : '';
+    saveFilterToSession();
     renderFileList(sortFiles(filterFiles(currentFiles)));
 }
 
@@ -1246,6 +1287,7 @@ function setFilterMode(mode) {
     const outBtn = document.getElementById('filterExcludeBtn');
     if (inBtn) inBtn.classList.toggle('active', mode === 'include');
     if (outBtn) outBtn.classList.toggle('active', mode === 'exclude');
+    saveFilterToSession();
     renderFileList(sortFiles(filterFiles(currentFiles)));
 }
 
