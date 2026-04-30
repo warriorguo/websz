@@ -102,7 +102,8 @@ func (s *Server) setupRoutes(staticFiles embed.FS) {
 
 	subFS, err := fs.Sub(staticFiles, "dist")
 	if err == nil {
-		s.mux.Handle("/", http.FileServer(http.FS(subFS)))
+		fileServer := http.FileServer(http.FS(subFS))
+		s.mux.Handle("/", noCacheHTMLAndJS(fileServer))
 	} else {
 		fmt.Printf("Error creating subFS: %v\n", err)
 		s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
