@@ -500,6 +500,20 @@ function setupContextMenu() {
     document.addEventListener('click', () => {
         hideContextMenu();
     });
+    document.addEventListener('contextmenu', (e) => {
+        const row = e.target.closest('.file-row');
+        if (row && row.dataset && row.dataset.path) {
+            e.preventDefault();
+            showContextMenu(e, row);
+            return;
+        }
+        const galleryItem = e.target.closest('.gallery-item');
+        if (galleryItem && galleryItem.dataset && galleryItem.dataset.path) {
+            e.preventDefault();
+            showContextMenu(e, galleryItem);
+            return;
+        }
+    });
 }
 
 function buildLocalPath(virtualPath) {
