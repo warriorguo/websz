@@ -199,18 +199,6 @@ function sortBy(field) {
     applySortChange();
 }
 
-function setSortField(field) {
-    if (sortField === field) return;
-    sortField = field;
-    sortAsc = false;
-    applySortChange();
-}
-
-function toggleSortDir() {
-    sortAsc = !sortAsc;
-    applySortChange();
-}
-
 function updateSortIndicators() {
     ['name', 'size', 'mtime'].forEach(f => {
         const th = document.getElementById('th-' + f);
@@ -222,10 +210,6 @@ function updateSortIndicators() {
             th.textContent = label;
         }
     });
-    const select = document.getElementById('sortFieldSelect');
-    if (select) select.value = sortField;
-    const dirBtn = document.getElementById('sortDirBtn');
-    if (dirBtn) dirBtn.textContent = sortAsc ? '\u25B2' : '\u25BC';
 }
 
 function renderFileList(files) {
