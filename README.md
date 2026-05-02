@@ -69,16 +69,19 @@ Options:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/list?p=/path` | List directory contents |
+| GET | `/api/find?p=/path&q=query` | Recursive name search |
 | GET | `/api/stat?p=/path` | Get file/directory info |
-| GET | `/api/download?p=/path` | Download file |
-| GET | `/open?p=/path` | Preview file in browser |
+| GET | `/api/download?p=/path` | Download file (Range supported) |
+| GET | `/open?p=/path` | Stream file inline (Range supported) |
 | POST | `/api/upload?p=/path` | Upload files (multipart) |
 | PUT | `/api/put?p=/path` | Upload single file (raw body) |
 | POST | `/api/mkdir` | Create directory |
 | POST | `/api/rename` | Rename/move file |
 | POST | `/api/delete` | Delete file/directory |
 
-All responses return JSON: `{"ok": true, "data": {...}, "error": ""}`
+All responses return JSON: `{"ok": true, "data": {...}, "error": ""}`.
+
+See [docs/API.md](docs/API.md) for the full reference — auth, path semantics, `FileInfo` schema, status codes, and a worked example for building a video client.
 
 ## Project Structure
 
