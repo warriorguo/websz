@@ -23,6 +23,7 @@ let cinemaActive = false;
 let cinemaShuffleMode = false;
 let cinemaShuffleOrder = [];
 let cinemaVideoRotation = 0;
+let cinemaAutoNext = localStorage.getItem('websz_cinemaAutoNext') === 'true';
 
 const CINEMA_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
 const CINEMA_VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogg'];
@@ -921,6 +922,7 @@ function enterCinemaMode() {
     cinemaIndex = 0;
     buildShuffleOrder();
     updateCinemaShuffleBtn();
+    updateCinemaAutoNextBtn();
     history.pushState({ cinema: true }, '');
     document.getElementById('cinemaOverlay').classList.add('active');
     renderCinemaItem();
@@ -960,7 +962,12 @@ function renderCinemaItem() {
         container.innerHTML = `<img src="${url}" alt="${file.name}">`;
         if (rotateBtn) rotateBtn.style.display = 'none';
     } else {
-        container.innerHTML = `<video src="${url}" autoplay controls loop></video>`;
+        const loopAttr = cinemaAutoNext ? '' : 'loop';
+        container.innerHTML = `<video src="${url}" autoplay controls ${loopAttr}></video>`;
+        const video = container.querySelector('video');
+        if (cinemaAutoNext && video) {
+            video.addEventListener('ended', cinemaNext);
+        }
         if (rotateBtn) {
             rotateBtn.style.display = '';
             updateCinemaRotateBtn();
@@ -1058,6 +1065,19 @@ function updateCinemaShuffleBtn() {
     const btn = document.getElementById('cinemaShuffleBtn');
     if (!btn) return;
     btn.classList.toggle('active', cinemaShuffleMode);
+}
+
+function toggleCinemaAutoNext() {
+    cinemaAutoNext = !cinemaAutoNext;
+    localStorage.setItem('websz_cinemaAutoNext', cinemaAutoNext);
+    updateCinemaAutoNextBtn();
+    renderCinemaItem();
+}
+
+function updateCinemaAutoNextBtn() {
+    const btn = document.getElementById('cinemaAutoNextBtn');
+    if (!btn) return;
+    btn.classList.toggle('active', cinemaAutoNext);
 }
 
 // ---- End Cinema Mode ----
