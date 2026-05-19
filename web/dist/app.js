@@ -113,7 +113,7 @@ function loadDirectory(path, skipPush) {
             if (data.ok) {
                 currentFiles = data.data.items || [];
                 if (data.data.root) serverRoot = data.data.root;
-                restoreFilterForPath(path);
+                restoreFilter();
                 renderFileList(sortFiles(filterFiles(currentFiles)));
             } else {
                 showError(data.error || 'Unknown error');
@@ -1269,20 +1269,16 @@ function saveFilterToSession() {
         sessionStorage.setItem(FILTER_SESSION_KEY, JSON.stringify({
             q: filterQuery,
             mode: filterMode,
-            path: currentPath,
         }));
     } catch (e) {}
 }
 
-function restoreFilterForPath(path) {
+function restoreFilter() {
     try {
         const raw = sessionStorage.getItem(FILTER_SESSION_KEY);
         if (!raw) return false;
         const saved = JSON.parse(raw);
-        if (!saved || saved.path !== path) {
-            sessionStorage.removeItem(FILTER_SESSION_KEY);
-            return false;
-        }
+        if (!saved) return false;
         filterQuery = saved.q || '';
         filterMode = saved.mode === 'exclude' ? 'exclude' : 'include';
         const input = document.getElementById('filterInput');
