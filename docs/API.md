@@ -156,7 +156,16 @@ X-Websz-Token: abcdef
 
 ### `GET /api/download?p=<path>`
 
-Same as `/open` but with `Content-Disposition: attachment` so browsers trigger a save. Also supports `Range`. Programmatic clients usually want `/open`.
+For files: same as `/open` but with `Content-Disposition: attachment` so browsers trigger a save. Also supports `Range`. Programmatic clients usually want `/open`.
+
+For directories: streams a zip archive of the directory's contents.
+
+- `Content-Type: application/zip`
+- `Content-Disposition: attachment; filename="<dirname>.zip"`
+- No `Content-Length` (the archive is streamed; size is not known in advance).
+- `Range` is not supported for directories.
+- Symlinks inside the tree are skipped (avoids loops and out-of-root targets). All other entries — including hidden files like `.DS_Store` — are included.
+- Allowed in `-readonly` mode.
 
 ---
 

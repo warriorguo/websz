@@ -98,7 +98,32 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := s.getPath(r)
-	file, info, err := s.fm.OpenFile(p)
+
+	info, err := s.fm.StatFast(p)
+	if err != nil {
+		if os.IsNotExist(err) {
+			writeError(w, http.StatusNotFound, "File not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if info.IsDir {
+		zipName := info.Name
+		if zipName == "" {
+			zipName = "archive"
+		}
+		w.Header().Set("Content-Type", "application/zip")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.zip"`, zipName))
+		if err := s.fm.ZipDir(p, w); err != nil {
+			// Headers/body already flushing — best-effort log; can't change status now.
+			fmt.Fprintf(os.Stderr, "websz: zip stream error for %s: %v\n", p, err)
+		}
+		return
+	}
+
+	file, _, err := s.fm.OpenFile(p)
 	if err != nil {
 		if os.IsNotExist(err) {
 			writeError(w, http.StatusNotFound, "File not found")
@@ -109,15 +134,10 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	if info.IsDir {
-		writeError(w, http.StatusBadRequest, "Cannot download directory")
-		return
-	}
-
 	w.Header().Set("Content-Type", info.MIME)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, info.Name))
 	w.Header().Set("Content-Length", strconv.FormatInt(info.Size, 10))
-	
+
 	if info.ETag != "" {
 		w.Header().Set("ETag", info.ETag)
 	}

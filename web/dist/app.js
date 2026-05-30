@@ -290,6 +290,7 @@ function renderFileList(files) {
         // Add specific actions based on file type
         if (file.isDir) {
             actionsHTML += `<button class="file-action-btn" onclick="loadDirectory('${file.path}')">Open</button>`;
+            actionsHTML += `<button class="file-action-btn" onclick="downloadFile('${file.path}')">Download Zip</button>`;
         } else {
             if (isPreviewable(file.ext, file.mime)) {
                 actionsHTML += `<button class="file-action-btn" onclick="openFile('${file.path}')">Preview</button>`;
@@ -655,11 +656,7 @@ function openItem() {
 function downloadItem() {
     if (!contextMenuItem) return;
     const path = contextMenuItem.dataset.path;
-    const isDir = contextMenuItem.dataset.isDir === 'true';
-    
-    if (!isDir) {
-        downloadFile(path);
-    }
+    downloadFile(path);
     hideContextMenu();
 }
 
