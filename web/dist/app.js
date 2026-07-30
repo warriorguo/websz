@@ -291,7 +291,9 @@ function renderFileList(files) {
             }
         };
         
+        // Cell classes let the phone card layout target each field by name.
         const nameCell = row.insertCell(0);
+        nameCell.className = 'cell-name';
         let nameHTML = `
             <div class="file-name">
                 <span class="file-icon">${file.isDir ? '📁' : getFileIcon(file.ext)}</span>
@@ -305,12 +307,15 @@ function renderFileList(files) {
         nameCell.innerHTML = nameHTML;
         
         const sizeCell = row.insertCell(1);
+        sizeCell.className = 'cell-size';
         sizeCell.textContent = file.isDir ? '' : formatFileSize(file.size);
-        
+
         const modifiedCell = row.insertCell(2);
+        modifiedCell.className = 'cell-mtime';
         modifiedCell.textContent = formatDate(file.mtime);
-        
+
         const actionsCell = row.insertCell(3);
+        actionsCell.className = 'cell-actions';
         let actionsHTML = '<div class="file-actions">';
         
         // Add specific actions based on file type
@@ -328,7 +333,11 @@ function renderFileList(files) {
         actionsHTML += `<button class="file-action-btn" onclick="showRenameModalForItem('${file.path}', '${file.name.replace(/'/g, "\\'")}')">Rename</button>`;
         actionsHTML += `<button class="file-action-btn file-action-btn-danger" onclick="deleteItemDirect('${file.path}', ${file.isDir}, '${file.name.replace(/'/g, "\\'")}')">Delete</button>`;
         actionsHTML += `<button class="file-action-btn" onclick="showItemPropertiesDirect('${file.path}')">Properties</button>`;
-        
+
+        // Shown only at phone width, where the individual action buttons are
+        // hidden: a visible entry point to the same menu long-press opens.
+        actionsHTML += `<button class="file-action-btn file-action-overflow" onclick="showRowMenu(event, this)" title="More actions" aria-label="More actions">⋯</button>`;
+
         actionsHTML += '</div>';
         actionsCell.innerHTML = actionsHTML;
     });
@@ -791,6 +800,18 @@ function showContextMenuAt(x, y, row) {
 
     menu.style.left = Math.max(margin, left) + 'px';
     menu.style.top = Math.max(margin, top) + 'px';
+}
+
+// Opens the context menu from a row's overflow button, anchored under it.
+function showRowMenu(e, btn) {
+    // Stop the tap reaching the row (which would open the item) and the document
+    // click handler (which would hide the menu we are about to show).
+    e.stopPropagation();
+    e.preventDefault();
+    const row = btn.closest('.file-row');
+    if (!row) return;
+    const r = btn.getBoundingClientRect();
+    showContextMenuAt(r.left, r.bottom + 2, row);
 }
 
 function hideContextMenu() {
