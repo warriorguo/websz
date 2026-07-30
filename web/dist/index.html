@@ -196,6 +196,17 @@
         .file-row.selected {
             background: #e3f2fd;
         }
+
+        /* Long-press opens our own context menu, so suppress the OS text-selection
+           callout that would otherwise fire on the same gesture. */
+        @media (hover: none) and (pointer: coarse) {
+            .file-row,
+            .gallery-item {
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                user-select: none;
+            }
+        }
         
         .file-icon {
             width: 16px;

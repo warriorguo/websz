@@ -28,6 +28,23 @@ let cinemaAutoNext = localStorage.getItem('websz_cinemaAutoNext') === 'true';
 const CINEMA_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
 const CINEMA_VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogg'];
 
+// Touch interaction state.
+// suppressTapAction is set once a gesture has already acted (long-press opened the
+// menu, or the gesture dismissed an open menu) so the click the browser synthesises
+// on touchend does not also open the item. longPressActive marks that our timer
+// already handled the gesture, so the contextmenu some browsers fire for the same
+// long-press can be swallowed. Both are cleared at the next touchstart and again as
+// soon as they are consumed — leaving either set would break the mouse on a hybrid
+// touch+mouse device, where pointer events can arrive with no touchstart between.
+let longPressTimer = null;
+let longPressActive = false;
+let suppressTapAction = false;
+let touchStartX = 0;
+let touchStartY = 0;
+
+const LONG_PRESS_MS = 500;
+const LONG_PRESS_MOVE_TOLERANCE = 10;
+
 document.addEventListener('DOMContentLoaded', function() {
     parseHashState();
     applyViewMode();
@@ -36,6 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSortIndicators();
     setupDragAndDrop();
     setupContextMenu();
+    setupTouchInteraction();
     setupCopyPathHotkey();
 });
 
@@ -247,19 +265,23 @@ function renderFileList(files) {
         row.dataset.name = file.name;
         
         row.ondblclick = () => {
-            if (file.isDir) {
-                loadDirectory(file.path);
-            } else {
-                openFile(file.path);
-            }
+            if (isCoarsePointer()) return; // coarse pointers open on a single tap
+            openEntry(file.path, file.isDir);
         };
-        
+
         row.oncontextmenu = (e) => {
             e.preventDefault();
             showContextMenu(e, row);
         };
-        
+
         row.onclick = (e) => {
+            if (isCoarsePointer()) {
+                if (suppressTapAction) return;
+                if (e.target.closest('button')) return; // row action buttons handle themselves
+                selectRow(row);
+                openEntry(file.path, file.isDir);
+                return;
+            }
             if (e.detail === 1) {
                 selectRow(row);
             }
@@ -483,7 +505,25 @@ function uploadFilesArray(files) {
 }
 
 function setupContextMenu() {
+    // Android Chrome fires a contextmenu event for the same long-press our timer
+    // already handled. Swallow exactly that one before any other handler sees it,
+    // then re-arm so a genuine right-click still works — on hybrid touch+mouse
+    // devices a mouse right-click can follow a finger long-press with no
+    // intervening touchstart.
+    document.addEventListener('contextmenu', (e) => {
+        if (!longPressActive) return;
+        longPressActive = false;
+        e.preventDefault();
+        e.stopPropagation();
+    }, true);
+
     document.addEventListener('click', () => {
+        if (suppressTapAction) {
+            // Consumed by the click this gesture already accounted for. Deeper
+            // handlers (row/gallery onclick) read the flag before this runs.
+            suppressTapAction = false;
+            return;
+        }
         hideContextMenu();
     });
     document.addEventListener('contextmenu', (e) => {
@@ -500,6 +540,94 @@ function setupContextMenu() {
             return;
         }
     });
+}
+
+function isCoarsePointer() {
+    return !!(window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches);
+}
+
+function openEntry(path, isDir) {
+    if (isDir) {
+        loadDirectory(path);
+    } else {
+        openFile(path);
+    }
+}
+
+function selectEntry(entry) {
+    if (entry.classList.contains('gallery-item')) {
+        document.querySelectorAll('.gallery-item').forEach(el => el.classList.remove('selected'));
+        entry.classList.add('selected');
+    } else {
+        selectRow(entry);
+    }
+}
+
+function cancelLongPress() {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+    }
+}
+
+// Touch devices never fire contextmenu, so long-press is the only route to the
+// Download / Rename / Delete / Properties actions. Handlers are delegated on
+// document so they keep working across re-renders of the list and gallery.
+function setupTouchInteraction() {
+    document.addEventListener('touchstart', (e) => {
+        // A new gesture begins: clear the state left by the previous one.
+        cancelLongPress();
+        longPressActive = false;
+        suppressTapAction = false;
+
+        const insideMenu = !!e.target.closest('.context-menu');
+        if (isContextMenuOpen() && !insideMenu) {
+            // Tapping outside an open menu dismisses it without activating
+            // whatever sits underneath.
+            hideContextMenu();
+            suppressTapAction = true;
+        }
+
+        if (e.touches.length !== 1) return;
+        if (insideMenu || e.target.closest('button, input, a')) return;
+
+        const entry = e.target.closest('.file-row, .gallery-item');
+        if (!entry || !entry.dataset || !entry.dataset.path) return;
+
+        const touch = e.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        const pageX = touch.pageX;
+        const pageY = touch.pageY;
+
+        longPressTimer = setTimeout(() => {
+            longPressTimer = null;
+            longPressActive = true;
+            suppressTapAction = true;
+            selectEntry(entry);
+            if (navigator.vibrate) navigator.vibrate(10);
+            showContextMenuAt(pageX, pageY, entry);
+        }, LONG_PRESS_MS);
+    }, { passive: true });
+
+    // Movement past the tolerance means the user is scrolling, not long-pressing.
+    document.addEventListener('touchmove', (e) => {
+        if (!longPressTimer) return;
+        const touch = e.touches[0];
+        if (!touch) return;
+        if (Math.abs(touch.clientX - touchStartX) > LONG_PRESS_MOVE_TOLERANCE ||
+            Math.abs(touch.clientY - touchStartY) > LONG_PRESS_MOVE_TOLERANCE) {
+            cancelLongPress();
+        }
+    }, { passive: true });
+
+    // Only the pending timer is cleared here — longPressActive must survive until
+    // the synthesised click and any contextmenu event have been swallowed.
+    document.addEventListener('touchend', cancelLongPress, { passive: true });
+    document.addEventListener('touchcancel', () => {
+        cancelLongPress();
+        longPressActive = false;
+    }, { passive: true });
 }
 
 function buildLocalPath(virtualPath) {
@@ -629,15 +757,24 @@ function setupCopyPathHotkey() {
 }
 
 function showContextMenu(e, row) {
+    const point = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+    showContextMenuAt(point.pageX, point.pageY, row);
+}
+
+function showContextMenuAt(x, y, row) {
     contextMenuItem = row;
     const menu = document.getElementById('contextMenu');
     menu.style.display = 'block';
-    menu.style.left = e.pageX + 'px';
-    menu.style.top = e.pageY + 'px';
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
 }
 
 function hideContextMenu() {
     document.getElementById('contextMenu').style.display = 'none';
+}
+
+function isContextMenuOpen() {
+    return document.getElementById('contextMenu').style.display === 'block';
 }
 
 function openItem() {
@@ -1159,24 +1296,26 @@ function renderGalleryView(files) {
         item.appendChild(label);
 
         item.ondblclick = () => {
-            if (file.isDir) {
-                loadDirectory(file.path);
-            } else {
-                openFile(file.path);
-            }
+            if (isCoarsePointer()) return; // coarse pointers open on a single tap
+            openEntry(file.path, file.isDir);
         };
 
         item.onclick = (e) => {
+            if (isCoarsePointer()) {
+                if (suppressTapAction) return;
+                if (e.target.closest('button')) return;
+                selectEntry(item);
+                openEntry(file.path, file.isDir);
+                return;
+            }
             if (e.detail === 1) {
-                document.querySelectorAll('.gallery-item').forEach(el => el.classList.remove('selected'));
-                item.classList.add('selected');
+                selectEntry(item);
             }
         };
 
         item.oncontextmenu = (e) => {
             e.preventDefault();
-            contextMenuItem = { dataset: { path: file.path, isDir: String(file.isDir), name: file.name } };
-            showContextMenu(e, contextMenuItem);
+            showContextMenu(e, item);
         };
 
         if (thumb.dataset.audioPath) {
