@@ -741,8 +741,12 @@
                 min-width: 0;
             }
 
+            /* 84px rather than 96px: once the toggles grew to 44px touch targets
+               they overran the line by a few pixels, pushing one onto a third
+               row. Shrinking the basis keeps the gaps between targets intact,
+               and flex-grow gives the width back when there is room. */
             .toolbar-input-filter {
-                flex: 1 1 96px;
+                flex: 1 1 84px;
                 width: auto;
             }
 
@@ -772,7 +776,7 @@
                 display: flex;
                 align-items: center;
                 gap: 2px;
-                padding: 4px 6px;
+                padding: 0 4px;
                 background: #f8f9fa;
                 border-bottom: 1px solid #ddd;
                 position: sticky;
@@ -780,9 +784,16 @@
                 z-index: 1;
             }
 
+            /* The sort chips are tap targets, so they get a full-height hit
+               area like the other touch controls. */
             .file-table th {
                 position: static;
-                padding: 4px 6px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 44px;
+                min-width: 44px;
+                padding: 4px 8px;
                 font-size: 12px;
                 color: #666;
                 border-bottom: none;
@@ -803,8 +814,9 @@
             .file-row {
                 display: block;
                 position: relative;
-                /* Right padding reserves room for the overflow button. */
-                padding: 10px 44px 10px 12px;
+                /* Right padding reserves room for the 44px overflow button plus
+                   its 6px offset, so long names never run underneath it. */
+                padding: 10px 56px 10px 12px;
                 border-bottom: 1px solid #f0f0f0;
             }
 
@@ -865,7 +877,11 @@
                 display: inline-block;
                 font-size: 18px;
                 line-height: 1;
-                padding: 6px 10px;
+                /* Full touch target: this is the only route to the row's
+                   actions at this width. */
+                min-width: 44px;
+                min-height: 44px;
+                padding: 10px;
                 color: #666;
             }
 
@@ -898,6 +914,71 @@
                 width: 100%;
                 max-width: none;
                 padding: 16px;
+            }
+        }
+
+        /* ---------- Touch target sizing ----------
+           Coarse pointers need roughly 44px hit areas. Scoped to narrow
+           viewports OR any touch device, so a touchscreen tablet gets the same
+           treatment while a mouse-driven desktop matches neither and is left
+           alone. Layout-coupled sizing (sort chips, the row overflow button)
+           lives in the phone block above instead, because those elements only
+           exist in the card layout. */
+        @media (max-width: 600px), (hover: none) and (pointer: coarse) {
+            .btn {
+                min-height: 44px;
+                padding: 10px 16px;
+            }
+
+            .filter-mode-btn,
+            .view-toggle-btn {
+                min-height: 44px;
+                min-width: 44px;
+                padding: 10px 12px;
+            }
+
+            .cinema-nav-btn,
+            .cinema-shuffle-btn,
+            .cinema-close-btn {
+                min-height: 44px;
+                min-width: 44px;
+                padding: 10px 14px;
+            }
+
+            /* On touch the context menu is the only route to Rename, Delete and
+               Properties, so its rows get a full hit area. */
+            .context-menu-item {
+                min-height: 44px;
+                padding: 13px 16px;
+            }
+
+            /* Keep the destructive action from sitting flush against its
+               neighbours, so a mis-tap does not land on Delete. */
+            .context-menu-item-danger {
+                margin: 6px 0;
+                border-top: 1px solid #e6e6e6;
+            }
+
+            /* Row action buttons are hidden in the phone card layout, but a
+               coarse-pointer tablet still shows the table, where they are real
+               tap targets. */
+            .file-action-btn {
+                min-height: 44px;
+                padding: 10px 12px;
+            }
+
+            .file-actions {
+                gap: 8px;
+            }
+
+            .file-action-btn-danger {
+                margin-left: 12px;
+            }
+
+            /* 16px or larger stops iOS Safari zooming the page on focus. */
+            .toolbar-input,
+            .form-input {
+                font-size: 16px;
             }
         }
     </style>
@@ -952,7 +1033,7 @@
         <div class="context-menu-item" onclick="copyLocalPath()">Copy Local Path</div>
         <div class="context-menu-item" onclick="copyURL()">Copy URL</div>
         <div class="context-menu-item" onclick="showRenameModal()">Rename</div>
-        <div class="context-menu-item" onclick="deleteItem()">Delete</div>
+        <div class="context-menu-item context-menu-item-danger" onclick="deleteItem()">Delete</div>
         <div class="context-menu-item" onclick="showItemProperties()">Properties</div>
     </div>
     
