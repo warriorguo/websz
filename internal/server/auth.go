@@ -294,8 +294,11 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 		s.handleMethodNotAllowed(w, "GET")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{
-		"token": s.config.Token,
+	// readOnly lets the frontend omit controls whose endpoints are not even
+	// registered in read-only mode.
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"token":    s.config.Token,
+		"readOnly": s.config.ReadOnly,
 	})
 }
 

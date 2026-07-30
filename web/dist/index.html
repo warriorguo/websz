@@ -378,6 +378,21 @@
         .hidden {
             display: none;
         }
+
+        /* The file input is driven by the Upload button, so it is taken out of
+           the layout without display: none, which some browsers refuse to open a
+           picker for. */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            border: 0;
+            opacity: 0;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+            white-space: nowrap;
+        }
         
         .loading {
             text-align: center;
@@ -1038,6 +1053,8 @@
                 <button class="view-toggle-btn active" id="viewListBtn" onclick="setViewMode('list')" title="List view">☰</button>
                 <button class="view-toggle-btn" id="viewGalleryBtn" onclick="setViewMode('gallery')" title="Gallery view">▦</button>
                 <button class="btn btn-secondary" id="cinemaBtn" style="display:none" onclick="enterCinemaMode()">Cinema</button>
+                <button class="btn" id="uploadBtn" onclick="openFilePicker()" title="Upload files to this folder">Upload</button>
+                <input type="file" id="fileInput" class="visually-hidden" multiple onchange="uploadFiles()">
             </div>
         </div>
         

@@ -4,6 +4,7 @@ let contextMenuItem = null;
 let currentFiles = [];
 let serverRoot = '';
 let serverToken = '';
+let serverReadOnly = false;
 let sortField = localStorage.getItem('websz_sortField') || 'name';
 let sortAsc = localStorage.getItem('websz_sortAsc') === 'true';
 let viewMode = localStorage.getItem('websz_viewMode') || 'list';
@@ -78,11 +79,28 @@ function fetchServerToken() {
     fetch('/api/session', { credentials: 'same-origin' })
         .then(r => r.ok ? r.json() : null)
         .then(data => {
-            if (data && data.ok && data.data && typeof data.data.token === 'string') {
+            if (!data || !data.ok || !data.data) return;
+            if (typeof data.data.token === 'string') {
                 serverToken = data.data.token;
             }
+            serverReadOnly = data.data.readOnly === true;
+            applyReadOnlyUI();
         })
         .catch(() => {});
+}
+
+// In read-only mode the upload endpoint is not even registered, so do not offer
+// the control. Applied once the session response arrives.
+function applyReadOnlyUI() {
+    const uploadBtn = document.getElementById('uploadBtn');
+    if (uploadBtn) {
+        uploadBtn.style.display = serverReadOnly ? 'none' : '';
+    }
+}
+
+function openFilePicker() {
+    const input = document.getElementById('fileInput');
+    if (input) input.click();
 }
 
 window.addEventListener('popstate', function(e) {
