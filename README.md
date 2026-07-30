@@ -17,14 +17,19 @@ A Go-based local directory file transfer and management web tool that provides a
 
 ## Features
 
-- **File Management**: Browse, upload, download, rename, and delete files
-- **Cinema Mode**: Fullscreen image/video viewer with keyboard and scroll navigation
+- **File Management**: Browse, download, rename, and delete files
+- **Upload**: Pick files from the toolbar or drag them from the desktop, both with a progress bar
+- **Folder Download**: Download an entire directory as a zip archive
+- **Gallery View**: Thumbnail grid with lazy-loaded previews, toggled from the toolbar
+- **Cinema Mode**: Fullscreen image/video viewer with on-screen controls, keyboard, scroll and swipe navigation, shuffle and auto-advance
+- **Mobile-friendly**: Responsive layout that collapses the file table into cards, single-tap to open, long-press for the context menu, and touch-sized controls
+- **Find & Filter**: Recursive name search across subfolders, plus include/exclude filtering of the current list that persists as you navigate
 - **Sortable Columns**: Click Name/Size/Modified headers to sort, state persists in URL
 - **URL State Sync**: Directory path and sort order encoded in URL for easy sharing
-- **Drag & Drop Upload**: Drag files from desktop to upload with progress bar
 - **Token Authentication**: Optional token-based authentication
 - **Read-only Mode**: Restrict to read-only operations
 - **Path Traversal Protection**: All paths validated to stay within the root directory
+- **Self-update**: Check for and install the latest release binary in place
 - **Cross-platform**: macOS (Intel/Apple Silicon), Linux, Windows
 
 ## Install
@@ -45,6 +50,9 @@ Options:
   -listen string    Listen address (default "0.0.0.0:18090")
   -token string     Access token (default: none, auto-generated for non-localhost)
   -readonly         Read-only mode
+  -version          Print version and exit
+  -check-update     Check whether a newer release is available
+  -update           Update to the latest release
   -help             Show help
 ```
 
