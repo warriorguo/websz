@@ -45,6 +45,10 @@ let touchStartY = 0;
 const LONG_PRESS_MS = 500;
 const LONG_PRESS_MOVE_TOLERANCE = 10;
 
+// Keeps the context menu clear of the viewport edges when it has to be flipped
+// or clamped to stay on screen.
+const CONTEXT_MENU_VIEWPORT_MARGIN = 4;
+
 document.addEventListener('DOMContentLoaded', function() {
     parseHashState();
     applyViewMode();
@@ -597,8 +601,8 @@ function setupTouchInteraction() {
         const touch = e.touches[0];
         touchStartX = touch.clientX;
         touchStartY = touch.clientY;
-        const pageX = touch.pageX;
-        const pageY = touch.pageY;
+        const startX = touchStartX;
+        const startY = touchStartY;
 
         longPressTimer = setTimeout(() => {
             longPressTimer = null;
@@ -606,7 +610,7 @@ function setupTouchInteraction() {
             suppressTapAction = true;
             selectEntry(entry);
             if (navigator.vibrate) navigator.vibrate(10);
-            showContextMenuAt(pageX, pageY, entry);
+            showContextMenuAt(startX, startY, entry);
         }, LONG_PRESS_MS);
     }, { passive: true });
 
@@ -758,15 +762,35 @@ function setupCopyPathHotkey() {
 
 function showContextMenu(e, row) {
     const point = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
-    showContextMenuAt(point.pageX, point.pageY, row);
+    // clientX/clientY, not pageX/pageY: the menu is position: fixed, so it resolves
+    // against the viewport rather than the document.
+    showContextMenuAt(point.clientX, point.clientY, row);
 }
 
 function showContextMenuAt(x, y, row) {
     contextMenuItem = row;
     const menu = document.getElementById('contextMenu');
+
+    // Must be displayed before measuring — offsetWidth/Height are 0 while hidden.
+    // Park it at the origin first so a stale position cannot stretch the viewport
+    // and skew innerWidth/innerHeight.
     menu.style.display = 'block';
-    menu.style.left = x + 'px';
-    menu.style.top = y + 'px';
+    menu.style.left = '0px';
+    menu.style.top = '0px';
+
+    const margin = CONTEXT_MENU_VIEWPORT_MARGIN;
+    const maxLeft = window.innerWidth - menu.offsetWidth - margin;
+    const maxTop = window.innerHeight - menu.offsetHeight - margin;
+
+    // Prefer flipping to the other side of the pointer, which keeps the menu
+    // anchored to the gesture. Clamp only when it fits on neither side.
+    let left = x;
+    if (left > maxLeft) left = Math.min(x - menu.offsetWidth, maxLeft);
+    let top = y;
+    if (top > maxTop) top = Math.min(y - menu.offsetHeight, maxTop);
+
+    menu.style.left = Math.max(margin, left) + 'px';
+    menu.style.top = Math.max(margin, top) + 'px';
 }
 
 function hideContextMenu() {

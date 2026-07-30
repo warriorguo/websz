@@ -263,6 +263,11 @@
             z-index: 1000;
             min-width: 120px;
             display: none;
+            /* Stay reachable when the menu is taller than the viewport, e.g. a
+               phone in landscape. Positioning measures the constrained height. */
+            max-height: calc(100vh - 8px);
+            max-height: calc(100dvh - 8px);
+            overflow-y: auto;
         }
         
         .context-menu-item {
