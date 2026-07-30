@@ -45,6 +45,19 @@ let touchStartY = 0;
 const LONG_PRESS_MS = 500;
 const LONG_PRESS_MOVE_TOLERANCE = 10;
 
+// Cinema touch state. The bar is hover-revealed on pointer devices; on touch it
+// is toggled by tapping the media, and swipes move between items.
+let cinemaChromeTimer = null;
+let cinemaTouchTracking = false;
+let cinemaTouchStartX = 0;
+let cinemaTouchStartY = 0;
+let cinemaTouchStartTime = 0;
+
+const CINEMA_SWIPE_MIN = 50;
+const CINEMA_TAP_MAX_MOVE = 12;
+const CINEMA_TAP_MAX_MS = 400;
+const CINEMA_CHROME_AUTOHIDE_MS = 3000;
+
 // Keeps the context menu clear of the viewport edges when it has to be flipped
 // or clamped to stay on screen.
 const CONTEXT_MENU_VIEWPORT_MARGIN = 4;
@@ -1087,10 +1100,18 @@ function enterCinemaMode() {
     updateCinemaShuffleBtn();
     updateCinemaAutoNextBtn();
     history.pushState({ cinema: true }, '');
-    document.getElementById('cinemaOverlay').classList.add('active');
+    const overlay = document.getElementById('cinemaOverlay');
+    overlay.classList.add('active');
+    updateCinemaHint();
     renderCinemaItem();
     document.addEventListener('keydown', cinemaKeyHandler);
-    document.getElementById('cinemaOverlay').addEventListener('wheel', cinemaWheelHandler, { passive: false });
+    overlay.addEventListener('wheel', cinemaWheelHandler, { passive: false });
+    // Passive: these never preventDefault, so pinch-zoom and scrolling are
+    // left alone.
+    overlay.addEventListener('touchstart', cinemaTouchStart, { passive: true });
+    overlay.addEventListener('touchmove', cinemaTouchMove, { passive: true });
+    overlay.addEventListener('touchend', cinemaTouchEnd, { passive: true });
+    overlay.addEventListener('touchcancel', cinemaTouchEnd, { passive: true });
 }
 
 function exitCinemaMode(fromPopstate) {
@@ -1098,9 +1119,15 @@ function exitCinemaMode(fromPopstate) {
     if (!fromPopstate) {
         history.back();
     }
-    document.getElementById('cinemaOverlay').classList.remove('active');
+    const overlay = document.getElementById('cinemaOverlay');
+    overlay.classList.remove('active');
+    hideCinemaChrome();
     document.removeEventListener('keydown', cinemaKeyHandler);
-    document.getElementById('cinemaOverlay').removeEventListener('wheel', cinemaWheelHandler);
+    overlay.removeEventListener('wheel', cinemaWheelHandler);
+    overlay.removeEventListener('touchstart', cinemaTouchStart);
+    overlay.removeEventListener('touchmove', cinemaTouchMove);
+    overlay.removeEventListener('touchend', cinemaTouchEnd);
+    overlay.removeEventListener('touchcancel', cinemaTouchEnd);
     // Stop any playing video
     const container = document.getElementById('cinemaMediaContainer');
     const video = container.querySelector('video');
@@ -1139,6 +1166,13 @@ function renderCinemaItem() {
 
     document.getElementById('cinemaFileName').textContent = file.name;
     document.getElementById('cinemaCounter').textContent = `${cinemaIndex + 1} / ${cinemaMediaFiles.length}`;
+
+    // On touch there is no hover to reveal the bar, so surface it with each item.
+    // Images auto-hide for an unobstructed view; videos keep it (see
+    // toggleCinemaChrome).
+    if (isCoarsePointer()) {
+        showCinemaChrome(isCinemaImage(ext));
+    }
 }
 
 function cycleCinemaVideoRotation() {
@@ -1180,6 +1214,86 @@ function cinemaPrev() {
 }
 
 let cinemaWheelCooldown = false;
+
+function showCinemaChrome(autoHide) {
+    clearTimeout(cinemaChromeTimer);
+    document.getElementById('cinemaOverlay').classList.add('chrome-visible');
+    if (autoHide) {
+        cinemaChromeTimer = setTimeout(hideCinemaChrome, CINEMA_CHROME_AUTOHIDE_MS);
+    }
+}
+
+function hideCinemaChrome() {
+    clearTimeout(cinemaChromeTimer);
+    document.getElementById('cinemaOverlay').classList.remove('chrome-visible');
+}
+
+function toggleCinemaChrome() {
+    const overlay = document.getElementById('cinemaOverlay');
+    if (overlay.classList.contains('chrome-visible')) {
+        hideCinemaChrome();
+        return;
+    }
+    // Videos keep the bar up: their native controls stay on screen anyway, and a
+    // tap on the video surface goes to those controls rather than to us, so an
+    // auto-hidden bar would be awkward to bring back.
+    showCinemaChrome(!overlay.querySelector('video'));
+}
+
+function updateCinemaHint() {
+    const hint = document.querySelector('.cinema-hint');
+    if (!hint) return;
+    hint.textContent = isCoarsePointer()
+        ? 'Swipe to navigate · Tap for controls'
+        : 'Arrow Up/Down or Scroll to navigate · ESC to exit';
+}
+
+function cinemaTouchStart(e) {
+    // More than one finger means a pinch-zoom; leave it to the browser.
+    if (e.touches.length !== 1) {
+        cinemaTouchTracking = false;
+        return;
+    }
+    // The bar's own buttons and a video's control surface handle their own taps.
+    if (e.target.closest('.cinema-bar') || e.target.tagName === 'VIDEO') {
+        cinemaTouchTracking = false;
+        return;
+    }
+    const touch = e.touches[0];
+    cinemaTouchTracking = true;
+    cinemaTouchStartX = touch.clientX;
+    cinemaTouchStartY = touch.clientY;
+    cinemaTouchStartTime = Date.now();
+}
+
+function cinemaTouchMove(e) {
+    if (e.touches.length > 1) cinemaTouchTracking = false; // became a pinch
+}
+
+function cinemaTouchEnd(e) {
+    if (!cinemaTouchTracking) return;
+    cinemaTouchTracking = false;
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - cinemaTouchStartX;
+    const dy = touch.clientY - cinemaTouchStartY;
+    const elapsed = Date.now() - cinemaTouchStartTime;
+
+    // Horizontal-dominant swipe navigates, mirroring the wheel handler.
+    if (Math.abs(dx) >= CINEMA_SWIPE_MIN && Math.abs(dx) > Math.abs(dy)) {
+        if (dx < 0) {
+            cinemaNext();
+        } else {
+            cinemaPrev();
+        }
+        return;
+    }
+
+    if (Math.abs(dx) <= CINEMA_TAP_MAX_MOVE && Math.abs(dy) <= CINEMA_TAP_MAX_MOVE &&
+        elapsed <= CINEMA_TAP_MAX_MS) {
+        toggleCinemaChrome();
+    }
+}
 
 function cinemaKeyHandler(e) {
     if (!cinemaActive) return;
@@ -1363,7 +1477,11 @@ function renderGalleryView(files) {
             showContextMenu(e, item);
         };
 
-        if (thumb.dataset.audioPath) {
+        // Hover-preview is deliberately pointer-only. On touch, tapping the item
+        // already opens the file and plays it, and mobile browsers synthesise a
+        // mouseenter on tap, which would start the preview on top of that and
+        // play the same audio twice.
+        if (thumb.dataset.audioPath && !isCoarsePointer()) {
             let hoverAudio = null;
             item.addEventListener('mouseenter', () => {
                 if (hoverAudio) return;

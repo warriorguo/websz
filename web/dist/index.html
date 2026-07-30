@@ -508,7 +508,16 @@
             transition: opacity 0.3s;
         }
 
-        .cinema-overlay:hover .cinema-bar {
+        /* Hover-reveal is for pointer devices only: a touch device never
+           satisfies :hover, which left the whole bar unreachable. Touch uses the
+           .chrome-visible class, toggled by tapping the media. */
+        @media (hover: hover) {
+            .cinema-overlay:hover .cinema-bar {
+                opacity: 1;
+            }
+        }
+
+        .cinema-overlay.chrome-visible .cinema-bar {
             opacity: 1;
         }
 
@@ -688,7 +697,13 @@
             pointer-events: none;
         }
 
-        .cinema-overlay:hover .cinema-hint {
+        @media (hover: hover) {
+            .cinema-overlay:hover .cinema-hint {
+                opacity: 1;
+            }
+        }
+
+        .cinema-overlay.chrome-visible .cinema-hint {
             opacity: 1;
         }
 
@@ -915,6 +930,33 @@
                 max-width: none;
                 padding: 16px;
             }
+
+            /* Six controls plus the filename cannot sit on one row at this
+               width, so the bar wraps and the name truncates rather than
+               pushing the buttons off screen. */
+            .cinema-bar {
+                flex-wrap: wrap;
+                gap: 6px;
+                padding: 8px 10px;
+            }
+
+            .cinema-bar-left {
+                gap: 8px;
+                min-width: 0;
+                flex: 1 1 100%;
+            }
+
+            .cinema-bar-right {
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            #cinemaFileName {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                min-width: 0;
+            }
         }
 
         /* ---------- Touch target sizing ----------
@@ -1108,9 +1150,12 @@
                 <span id="cinemaCounter"></span>
             </div>
             <div class="cinema-bar-right">
+                <button class="cinema-nav-btn" onclick="cinemaPrev()" title="Previous" aria-label="Previous">‹</button>
+                <button class="cinema-nav-btn" onclick="cinemaNext()" title="Next" aria-label="Next">›</button>
                 <button class="cinema-shuffle-btn" id="cinemaRotateBtn" onclick="cycleCinemaVideoRotation()" title="Rotate video" style="display:none;">↻ Rotate</button>
                 <button class="cinema-shuffle-btn" id="cinemaAutoNextBtn" onclick="toggleCinemaAutoNext()" title="Auto-advance to next video when current finishes">▶▶ Auto-next</button>
                 <button class="cinema-shuffle-btn" id="cinemaShuffleBtn" onclick="toggleCinemaShuffle()" title="Toggle shuffle mode">⇄ Shuffle</button>
+                <button class="cinema-close-btn" onclick="exitCinemaMode()" title="Close" aria-label="Close">✕</button>
             </div>
         </div>
     </div>
