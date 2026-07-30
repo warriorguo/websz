@@ -20,7 +20,7 @@ func main() {
 	var (
 		root     = flag.String("root", "", "Root directory (default: current working directory)")
 		listen   = flag.String("listen", "0.0.0.0:18090", "Listen address")
-		token    = flag.String("token", "", "Access token (default: none, recommended for non-localhost)")
+		token    = flag.String("token", "", "Access token (default: none, auto-generated for non-localhost)")
 		readonly = flag.Bool("readonly", false, "Read-only mode")
 		help    = flag.Bool("help", false, "Show help")
 		version     = flag.Bool("version", false, "Print version and exit")
