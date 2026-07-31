@@ -1,15 +1,15 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/warriorguo/websz/internal/server"
 	"github.com/warriorguo/websz/internal/updater"
@@ -77,9 +77,15 @@ func main() {
 
 	accessToken := *token
 	if accessToken == "" && !isLocalhost(*listen) {
-		accessToken = generateToken()
+		generated, err := generateToken()
+		if err != nil {
+			// Fail closed: the alternative is exposing the filesystem to the
+			// network with no credential at all.
+			log.Fatalf("Failed to generate an access token: %v", err)
+		}
+		accessToken = generated
 		log.Printf("Generated access token: %s", accessToken)
-		log.Printf("Use this token in X-Websz-Token header or ?token= query parameter")
+		log.Printf("Use this token in the X-Websz-Token header or the ?t= query parameter")
 	}
 
 	config := &server.Config{
@@ -134,14 +140,21 @@ func isLocalhost(listen string) bool {
 	return host == "127.0.0.1" || host == "localhost"
 }
 
-func generateToken() string {
-	rand.Seed(time.Now().UnixNano())
-	const charset = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	bytes := make([]byte, 6)
-	for i := range bytes {
-		bytes[i] = charset[rand.Intn(len(charset))]
+// generateToken returns a URL-safe random token.
+//
+// This token is the only thing standing between the network and full read/write
+// access to the served directory, so it uses crypto/rand and 16 bytes of
+// entropy. The previous implementation drew 6 characters from math/rand seeded
+// with the current time, which was both brute-forcible (62^6) and predictable
+// from an approximate process start time.
+func generateToken() (string, error) {
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
 	}
-	return string(bytes)
+	// RawURLEncoding keeps the token safe in query strings and cookies without
+	// padding: 16 bytes becomes 22 characters of [A-Za-z0-9-_].
+	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
 func printAccessURLs(listen, token string) {
